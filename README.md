@@ -4,11 +4,12 @@ An internal tool for ingesting, reviewing, classifying, and acting on Claude AI 
 
 ## What it does
 
-- Upload usage CSVs and stream them into Postgres via an upsert pipeline
-- Browse and filter records (internal vs external, feedback status, tool route, date range)
-- Classify records and add group/ticket text inline
-- Bulk-create Jira issues from selected records with automatic key write-back
-- View weekly analytics: usage counts (including zero-usage weeks), avg TTFT, feedback breakdown by tool route
+- Upload usage CSVs and stream them into Postgres via an upsert pipeline; roll back any upload to undo inserts and restore previous state
+- Browse and filter records (internal vs external, feedback status, Jira ticket status, tool route, user, date range)
+- Classify records, add notes, link to an existing Jira epic or customer-feedback issue inline
+- Bulk-create Jira bugs from selected records with automatic key write-back; classification set as a label
+- Export filtered records to Excel
+- View weekly analytics: usage counts (including zero-usage weeks), avg TTFT, feedback breakdown by tool route (filterable by feedback value)
 
 ## Stack
 
@@ -82,8 +83,13 @@ JIRA_CUSTOM_SKILLSET=customfield_10333
 |---|---|---|
 | `POST` | `/ingest/csv` | Upload and parse a CSV of usage records |
 | `GET` | `/records` | List records with filters |
-| `PATCH` | `/records/:id` | Update classification, groupText, ticketText |
-| `POST` | `/jira/create` | Create Jira issues from record IDs |
+| `GET` | `/records/export` | Download filtered records as Excel |
+| `PATCH` | `/records/:id` | Update classification, groupText, epicKey, linkedIssueKey |
+| `GET` | `/batches` | List upload batches |
+| `POST` | `/batches/:id/rollback` | Roll back an upload batch |
+| `GET` | `/jira/epics` | Active askPEI-labelled epics |
+| `GET` | `/jira/customer-feedback-issues` | Open bugs/stories with customer_feedback label |
+| `POST` | `/jira/create` | Create Jira bugs from record IDs |
 | `GET` | `/analytics/weekly` | Weekly usage count + avg TTFT |
 | `GET` | `/analytics/overall` | Overall avg TTFT |
 | `GET` | `/analytics/feedback-by-route` | Feedback count grouped by tool route |
