@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { marked } from 'marked'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   useReactTable,
@@ -18,6 +19,47 @@ import {
   type UsageRecord,
 } from '@/lib/api'
 
+// Full-screen markdown modal
+function ResponseModal({ title, content, onClose }: { title: string; content: string; onClose: () => void }) {
+  const html = marked.parse(content) as string
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl w-full max-w-5xl flex flex-col shadow-2xl"
+        style={{ height: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 text-2xl leading-none px-1"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div
+          className="flex-1 overflow-y-auto px-8 py-6 prose prose-sm max-w-none
+            prose-headings:font-semibold prose-a:text-blue-600 prose-a:no-underline
+            hover:prose-a:underline prose-strong:font-semibold"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // Inline text edit — saves on blur if value changed
 function InlineEdit({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   return (
@@ -34,6 +76,7 @@ export default function RecordsPage() {
   const qc = useQueryClient()
   const [filters, setFilters] = useState<RecordFilters>({ page: 1, pageSize: 50 })
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [modal, setModal] = useState<{ title: string; content: string } | null>(null)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['records', filters],
@@ -154,20 +197,34 @@ export default function RecordsPage() {
     {
       accessorKey: 'requestContent',
       header: 'Request',
-      cell: ({ row }) => (
-        <p className="text-xs text-gray-700 whitespace-pre-wrap max-w-sm break-words">
-          {row.original.requestContent}
-        </p>
-      ),
+      cell: ({ row }) => {
+        const text = row.original.requestContent
+        const preview = text.split('\n').slice(0, 3).join('\n')
+        return (
+          <div className="max-w-xs">
+            <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{preview}{text.length > preview.length ? '…' : ''}</p>
+            {text.length > preview.length && (
+              <button onClick={() => setModal({ title: 'Request', content: text })} className="text-xs text-blue-600 hover:underline mt-1">Read more</button>
+            )}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'responseContent',
       header: 'Response',
-      cell: ({ row }) => (
-        <p className="text-xs text-gray-700 whitespace-pre-wrap max-w-sm break-words">
-          {row.original.responseContent}
-        </p>
-      ),
+      cell: ({ row }) => {
+        const text = row.original.responseContent
+        const preview = text.split('\n').slice(0, 3).join('\n')
+        return (
+          <div className="max-w-xs">
+            <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{preview}{text.length > preview.length ? '…' : ''}</p>
+            {text.length > preview.length && (
+              <button onClick={() => setModal({ title: 'Response', content: text })} className="text-xs text-blue-600 hover:underline mt-1">Read more</button>
+            )}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'groupText',
@@ -349,6 +406,14 @@ export default function RecordsPage() {
             </div>
           </div>
         </>
+      )}
+
+      {modal && (
+        <ResponseModal
+          title={modal.title}
+          content={modal.content}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   )
