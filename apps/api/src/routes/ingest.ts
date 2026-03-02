@@ -94,8 +94,15 @@ router.post('/csv', upload.single('file'), (req, res) => {
       return
     }
 
+    // Deduplicate within the CSV itself (last row wins for duplicate keys)
+    const dedupMap = new Map<string, ParsedRow>()
+    for (const row of parsed) {
+      dedupMap.set(`${row.userId}|${row.requestTime.toISOString()}`, row)
+    }
+    const unique = Array.from(dedupMap.values())
+
     const existing = await prisma.usageRecord.findMany({
-      where: { OR: parsed.map(r => ({ userId: r.userId, requestTime: r.requestTime })) },
+      where: { OR: unique.map(r => ({ userId: r.userId, requestTime: r.requestTime })) },
       select: { userId: true, requestTime: true },
     })
 
@@ -103,10 +110,10 @@ router.post('/csv', upload.single('file'), (req, res) => {
       existing.map(r => `${r.userId}|${r.requestTime.toISOString()}`)
     )
 
-    const toCreate = parsed.filter(
+    const toCreate = unique.filter(
       r => !existingKeys.has(`${r.userId}|${r.requestTime.toISOString()}`)
     )
-    const toUpdate = parsed.filter(r =>
+    const toUpdate = unique.filter(r =>
       existingKeys.has(`${r.userId}|${r.requestTime.toISOString()}`)
     )
 
