@@ -38,17 +38,22 @@ export function col(row: CsvRow, ...names: string[]): string | undefined {
   return undefined
 }
 
-/** Parses a date string in either ISO format or DD/MM/YYYY HH:MM format. */
+/** Parses a date string in either ISO format or DD/MM/YYYY HH:MM format.
+ *  Seconds are always truncated so both formats match on the same key. */
 export function parseRequestTime(raw: string): Date | null {
   // DD/MM/YYYY HH:MM  or  DD/MM/YYYY HH:MM:SS
   const ddmmMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)$/)
   if (ddmmMatch) {
     const [, dd, mm, yyyy, time] = ddmmMatch
     const d = new Date(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${time}`)
-    return isNaN(d.getTime()) ? null : d
+    if (isNaN(d.getTime())) return null
+    d.setSeconds(0, 0)
+    return d
   }
   const d = new Date(raw)
-  return isNaN(d.getTime()) ? null : d
+  if (isNaN(d.getTime())) return null
+  d.setSeconds(0, 0)
+  return d
 }
 
 export function parseRow(row: CsvRow): ParsedRow | null {
