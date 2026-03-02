@@ -89,16 +89,26 @@ router.get('/overall', (req, res) => {
   })
 })
 
-// GET /analytics/feedback-by-route — hasFeedback=true count grouped by toolRoute desc
+// GET /analytics/feedback-by-route?feedbackValue=x — count grouped by toolRoute desc
 router.get('/feedback-by-route', (req, res) => {
   void (async () => {
-    const rows = await prisma.$queryRaw<FeedbackByRouteRow[]>`
-      SELECT "toolRoute", COUNT(*)::int AS count
-      FROM "UsageRecord"
-      WHERE "hasFeedback" = true
-      GROUP BY "toolRoute"
-      ORDER BY count DESC
-    `
+    const { feedbackValue } = req.query as { feedbackValue?: string }
+
+    const rows = feedbackValue
+      ? await prisma.$queryRaw<FeedbackByRouteRow[]>`
+          SELECT "toolRoute", COUNT(*)::int AS count
+          FROM "UsageRecord"
+          WHERE "feedbackValue" = ${feedbackValue}
+          GROUP BY "toolRoute"
+          ORDER BY count DESC
+        `
+      : await prisma.$queryRaw<FeedbackByRouteRow[]>`
+          SELECT "toolRoute", COUNT(*)::int AS count
+          FROM "UsageRecord"
+          WHERE "hasFeedback" = true
+          GROUP BY "toolRoute"
+          ORDER BY count DESC
+        `
 
     res.json(rows)
   })().catch(err => {

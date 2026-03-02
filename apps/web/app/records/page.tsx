@@ -18,6 +18,8 @@ import {
   getUsers,
   getFeedbackValues,
   getEpics,
+  getCustomerFeedbackIssues,
+  getExportUrl,
   type RecordFilters,
   type UsageRecord,
 } from '@/lib/api'
@@ -115,8 +117,13 @@ export default function RecordsPage() {
     queryFn: getEpics,
   })
 
+  const { data: customerFeedbackIssues } = useQuery({
+    queryKey: ['customer-feedback-issues'],
+    queryFn: getCustomerFeedbackIssues,
+  })
+
   const patch = useMutation({
-    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey'>> }) =>
+    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey'>> }) =>
       patchRecord(id, update),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['records'] }),
   })
@@ -204,7 +211,7 @@ export default function RecordsPage() {
       accessorKey: 'rationale',
       header: 'Rationale',
       cell: ({ row }) => (
-        <span className="text-xs text-gray-600 max-w-xs block truncate" title={row.original.rationale ?? ''}>
+        <span className="text-xs text-gray-600 max-w-[30rem] block whitespace-pre-wrap break-words">
           {row.original.rationale ?? <span className="text-gray-300">—</span>}
         </span>
       ),
@@ -241,6 +248,24 @@ export default function RecordsPage() {
           <option value="">— no epic —</option>
           {epics?.map(e => (
             <option key={e.key} value={e.key}>{e.key}: {e.summary}</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      accessorKey: 'linkedIssueKey',
+      header: 'Linked Issue',
+      cell: ({ row }) => (
+        <select
+          value={row.original.linkedIssueKey ?? ''}
+          onChange={e =>
+            patch.mutate({ id: row.original.id, update: { linkedIssueKey: e.target.value || null } })
+          }
+          className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 py-1 max-w-[220px]"
+        >
+          <option value="">— none —</option>
+          {customerFeedbackIssues?.map(i => (
+            <option key={i.key} value={i.key}>{i.key}: {i.summary}</option>
           ))}
         </select>
       ),
@@ -285,7 +310,7 @@ export default function RecordsPage() {
     },
     {
       accessorKey: 'groupText',
-      header: 'Group',
+      header: 'Notes',
       cell: ({ row }) => (
         <InlineEdit
           value={row.original.groupText ?? ''}
@@ -351,15 +376,23 @@ export default function RecordsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Records</h1>
           <p className="text-sm text-gray-500 mt-0.5">{data?.total ?? 0} total records</p>
         </div>
-        {selectedIds.length > 0 && (
-          <button
-            onClick={() => createJira.mutate(selectedIds)}
-            disabled={createJira.isPending}
-            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors focus:ring-4 focus:ring-blue-300"
+        <div className="flex items-center gap-2">
+          <a
+            href={getExportUrl(filters)}
+            className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors"
           >
-            {createJira.isPending ? 'Creating…' : `Create Jira (${selectedIds.length})`}
-          </button>
-        )}
+            Export Excel
+          </a>
+          {selectedIds.length > 0 && (
+            <button
+              onClick={() => createJira.mutate(selectedIds)}
+              disabled={createJira.isPending}
+              className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors focus:ring-4 focus:ring-blue-300"
+            >
+              {createJira.isPending ? 'Creating…' : `Create Jira (${selectedIds.length})`}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -390,6 +423,21 @@ export default function RecordsPage() {
             <option value="">All feedback</option>
             <option value="true">Has feedback</option>
             <option value="false">No feedback</option>
+          </select>
+
+          <select
+            value={filters.hasJira === undefined ? '' : String(filters.hasJira)}
+            onChange={e =>
+              setFilter(
+                'hasJira',
+                e.target.value === '' ? undefined : e.target.value === 'true'
+              )
+            }
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+          >
+            <option value="">All tickets</option>
+            <option value="true">Has Jira ticket</option>
+            <option value="false">No Jira ticket</option>
           </select>
 
           <input

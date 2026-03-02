@@ -19,6 +19,7 @@ export interface UsageRecord {
   jiraIssueKey: string | null
   jiraIssueUrl: string | null
   epicKey: string | null
+  linkedIssueKey: string | null
   createdAt: string
   updatedAt: string
 }
@@ -26,6 +27,13 @@ export interface UsageRecord {
 export interface JiraEpic {
   key: string
   summary: string
+}
+
+export interface JiraIssue {
+  key: string
+  summary: string
+  issueType: string
+  status: string
 }
 
 export interface RecordsResponse {
@@ -38,6 +46,7 @@ export interface RecordsResponse {
 export interface RecordFilters {
   type?: 'internal' | 'external'
   hasFeedback?: boolean
+  hasJira?: boolean
   toolRoute?: string
   userId?: string
   feedbackValue?: string
@@ -77,7 +86,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export function uploadCsv(file: File) {
   const form = new FormData()
   form.append('file', file)
-  return apiFetch<{ inserted: number; updated: number }>('/ingest/csv', {
+  return apiFetch<{ inserted: number; updated: number; batchId: number | null }>('/ingest/csv', {
     method: 'POST',
     body: form,
   })
@@ -87,6 +96,7 @@ export function getRecords(filters: RecordFilters = {}) {
   const params = new URLSearchParams()
   if (filters.type) params.set('type', filters.type)
   if (filters.hasFeedback !== undefined) params.set('hasFeedback', String(filters.hasFeedback))
+  if (filters.hasJira !== undefined) params.set('hasJira', String(filters.hasJira))
   if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
   if (filters.userId) params.set('userId', filters.userId)
   if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
@@ -100,7 +110,7 @@ export function getRecords(filters: RecordFilters = {}) {
 
 export function patchRecord(
   id: number,
-  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey'>>
+  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey'>>
 ) {
   return apiFetch<UsageRecord>(`/records/${id}`, {
     method: 'PATCH',
@@ -120,6 +130,20 @@ export function createJiraIssues(ids: number[]) {
   })
 }
 
+export function getExportUrl(filters: RecordFilters = {}) {
+  const params = new URLSearchParams()
+  if (filters.type) params.set('type', filters.type)
+  if (filters.hasFeedback !== undefined) params.set('hasFeedback', String(filters.hasFeedback))
+  if (filters.hasJira !== undefined) params.set('hasJira', String(filters.hasJira))
+  if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
+  if (filters.userId) params.set('userId', filters.userId)
+  if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
+  if (filters.week) params.set('week', filters.week)
+  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
+  if (filters.dateTo) params.set('dateTo', filters.dateTo)
+  return `${BASE}/records/export?${params}`
+}
+
 export function getClassifications() {
   return apiFetch<Classification[]>('/classifications')
 }
@@ -136,6 +160,10 @@ export function getEpics() {
   return apiFetch<JiraEpic[]>('/jira/epics')
 }
 
+export function getCustomerFeedbackIssues() {
+  return apiFetch<JiraIssue[]>('/jira/customer-feedback-issues')
+}
+
 export function getWeeklyAnalytics(type?: 'internal' | 'external') {
   const params = type ? `?type=${type}` : ''
   return apiFetch<WeeklyRow[]>(`/analytics/weekly${params}`)
@@ -145,6 +173,26 @@ export function getOverallAnalytics() {
   return apiFetch<{ avgTtftSeconds: number | null }>('/analytics/overall')
 }
 
-export function getFeedbackByRoute() {
-  return apiFetch<FeedbackByRouteRow[]>('/analytics/feedback-by-route')
+export function getFeedbackByRoute(feedbackValue?: string) {
+  const params = feedbackValue ? `?feedbackValue=${encodeURIComponent(feedbackValue)}` : ''
+  return apiFetch<FeedbackByRouteRow[]>(`/analytics/feedback-by-route${params}`)
+}
+
+export interface UploadBatch {
+  id: number
+  filename: string
+  insertedCount: number
+  updatedCount: number
+  isRolledBack: boolean
+  createdAt: string
+}
+
+export function getBatches() {
+  return apiFetch<UploadBatch[]>('/batches')
+}
+
+export function rollbackBatch(id: number) {
+  return apiFetch<{ deleted: number; restored: number }>(`/batches/${id}/rollback`, {
+    method: 'POST',
+  })
 }

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { Prisma } from '@prisma/client'
+import * as XLSX from 'xlsx'
 import prisma from '../lib/prisma'
 
 const router = Router()
@@ -9,6 +10,7 @@ router.get('/', (req, res) => {
     const {
       type,
       hasFeedback,
+      hasJira,
       toolRoute,
       userId,
       feedbackValue,
@@ -26,6 +28,9 @@ router.get('/', (req, res) => {
 
     if (hasFeedback === 'true') where.hasFeedback = true
     else if (hasFeedback === 'false') where.hasFeedback = false
+
+    if (hasJira === 'true') where.jiraIssueKey = { not: null }
+    else if (hasJira === 'false') where.jiraIssueKey = null
 
     if (toolRoute) where.toolRoute = toolRoute
     if (userId) where.userId = userId
@@ -65,6 +70,92 @@ router.get('/', (req, res) => {
   })
 })
 
+// GET /records/export — download all matching records as Excel (same filters, no pagination)
+router.get('/export', (req, res) => {
+  void (async () => {
+    const {
+      type,
+      hasFeedback,
+      hasJira,
+      toolRoute,
+      userId,
+      feedbackValue,
+      week,
+      dateFrom,
+      dateTo,
+    } = req.query as Record<string, string>
+
+    const where: Prisma.UsageRecordWhereInput = {}
+
+    if (type === 'internal') where.isInternal = true
+    else if (type === 'external') where.isInternal = false
+
+    if (hasFeedback === 'true') where.hasFeedback = true
+    else if (hasFeedback === 'false') where.hasFeedback = false
+
+    if (hasJira === 'true') where.jiraIssueKey = { not: null }
+    else if (hasJira === 'false') where.jiraIssueKey = null
+
+    if (toolRoute) where.toolRoute = toolRoute
+    if (userId) where.userId = userId
+    if (feedbackValue) where.feedbackValue = feedbackValue
+
+    if (week) {
+      try {
+        const { start, end } = parseIsoWeek(week)
+        where.requestTime = { gte: start, lt: end }
+      } catch {
+        res.status(400).json({ error: 'Invalid week format. Use YYYY-WNN' })
+        return
+      }
+    }
+
+    if (dateFrom || dateTo) {
+      where.requestTime = parseDateRange(dateFrom, dateTo)
+    }
+
+    const records = await prisma.usageRecord.findMany({
+      where,
+      orderBy: { requestTime: 'desc' },
+    })
+
+    const rows = records.map(r => ({
+      ID: r.id,
+      'Trace ID': r.traceId ?? '',
+      'User ID': r.userId,
+      'Request Time': new Date(r.requestTime).toISOString(),
+      'Tool Route': r.toolRoute,
+      Internal: r.isInternal ? 'Yes' : 'No',
+      'Has Feedback': r.hasFeedback ? 'Yes' : 'No',
+      'Feedback Value': r.feedbackValue ?? '',
+      Rationale: r.rationale ?? '',
+      Classification: r.classification,
+      Notes: r.groupText ?? '',
+      Ticket: r.ticketText ?? '',
+      Epic: r.epicKey && process.env.JIRA_HOST
+        ? `https://${process.env.JIRA_HOST}/browse/${r.epicKey}`
+        : r.epicKey ?? '',
+      'TTFT (s)': r.ttftSeconds ?? '',
+      'Request Content': r.requestContent,
+      'Response Content': r.responseContent,
+    }))
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(rows)
+    XLSX.utils.book_append_sheet(wb, ws, 'Records')
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+    const date = new Date().toISOString().split('T')[0]
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="records-${date}.xlsx"`)
+    res.send(buf)
+  })().catch(err => {
+    console.error(err)
+    res.status(500).json({ error: 'Export failed' })
+  })
+})
+
 router.patch('/:id', (req, res) => {
   void (async () => {
     const id = parseInt(req.params.id)
@@ -73,7 +164,7 @@ router.patch('/:id', (req, res) => {
       return
     }
 
-    const { classification, groupText, ticketText, epicKey } = req.body as Record<string, string | undefined>
+    const { classification, groupText, ticketText, epicKey, linkedIssueKey } = req.body as Record<string, string | undefined>
 
     const record = await prisma.usageRecord.update({
       where: { id },
@@ -82,6 +173,7 @@ router.patch('/:id', (req, res) => {
         ...(groupText !== undefined && { groupText }),
         ...(ticketText !== undefined && { ticketText }),
         ...(epicKey !== undefined && { epicKey }),
+        ...(linkedIssueKey !== undefined && { linkedIssueKey }),
       },
     })
 

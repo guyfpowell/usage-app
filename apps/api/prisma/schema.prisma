@@ -26,6 +26,7 @@ model UsageRecord {
   jiraIssueKey    String?
   jiraIssueUrl    String?
   epicKey         String?
+  linkedIssueKey  String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -33,6 +34,25 @@ model UsageRecord {
   @@index([toolRoute])
   @@index([isInternal])
   @@index([hasFeedback])
+}
+
+model UploadBatch {
+  id            Int                 @id @default(autoincrement())
+  filename      String
+  insertedCount Int
+  updatedCount  Int
+  isRolledBack  Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  records       UploadBatchRecord[]
+}
+
+model UploadBatchRecord {
+  id            Int         @id @default(autoincrement())
+  batchId       Int
+  recordId      Int
+  action        String      // 'inserted' | 'updated'
+  previousState Json?       // snapshot of ingest fields before update; null for inserts
+  batch         UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 }
 
 model InternalDomain {

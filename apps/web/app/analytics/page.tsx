@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getWeeklyAnalytics, getOverallAnalytics, getFeedbackByRoute } from '@/lib/api'
+import { getWeeklyAnalytics, getOverallAnalytics, getFeedbackByRoute, getFeedbackValues } from '@/lib/api'
 
 type WeeklyFilter = 'all' | 'internal' | 'external'
 
 export default function AnalyticsPage() {
   const [weeklyFilter, setWeeklyFilter] = useState<WeeklyFilter>('all')
+  const [feedbackFilter, setFeedbackFilter] = useState<string>('')
 
   const { data: weekly } = useQuery({
     queryKey: ['analytics/weekly', weeklyFilter],
@@ -19,9 +20,14 @@ export default function AnalyticsPage() {
     queryFn: getOverallAnalytics,
   })
 
+  const { data: feedbackValues } = useQuery({
+    queryKey: ['feedback-values'],
+    queryFn: getFeedbackValues,
+  })
+
   const { data: byRoute } = useQuery({
-    queryKey: ['analytics/feedback-by-route'],
-    queryFn: getFeedbackByRoute,
+    queryKey: ['analytics/feedback-by-route', feedbackFilter],
+    queryFn: () => getFeedbackByRoute(feedbackFilter || undefined),
   })
 
   return (
@@ -105,8 +111,18 @@ export default function AnalyticsPage() {
 
         {/* Feedback by route */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
             <h2 className="text-base font-semibold text-gray-900">Feedback by Tool Route</h2>
+            <select
+              value={feedbackFilter}
+              onChange={e => setFeedbackFilter(e.target.value)}
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-1.5"
+            >
+              <option value="">All feedback</option>
+              {feedbackValues?.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

@@ -46,32 +46,66 @@ function makeDescription(record: {
   traceId: string | null
   requestTime: Date
 }) {
-  const classification = [record.classification, record.groupText].filter(Boolean).join(' - ')
+  const content = [
+    heading('BACKGROUND'),
+    para('Ask PEI feedback -'),
+    heading('QUESTION'),
+    para('User Prompt / Query:'),
+    para(record.requestContent),
+    heading('CURRENT ANSWER (AskPEI Output)'),
+    para(record.responseContent),
+    heading('DEFECT CLASSIFICATION'),
+    para(record.classification),
+    heading('SUPPORTING INFORMATION / TRACE'),
+    para(record.traceId ?? '—'),
+    heading('Model Version'),
+    para('<Model Name / AskPEI Version>'),
+    heading('Environment'),
+    para('Prod'),
+    heading('Timestamp'),
+    para(record.requestTime.toISOString()),
+  ]
 
-  return {
-    type: 'doc',
-    version: 1,
-    content: [
-      heading('BACKGROUND'),
-      para('Ask PEI feedback -'),
-      heading('QUESTION'),
-      para('User Prompt / Query:'),
-      para(record.requestContent),
-      heading('CURRENT ANSWER (AskPEI Output)'),
-      para(record.responseContent),
-      heading('DEFECT CLASSIFICATION'),
-      para(classification),
-      heading('SUPPORTING INFORMATION / TRACE'),
-      para(record.traceId ?? '—'),
-      heading('Model Version'),
-      para('<Model Name / AskPEI Version>'),
-      heading('Environment'),
-      para('Prod'),
-      heading('Timestamp'),
-      para(record.requestTime.toISOString()),
-    ],
+  if (record.groupText) {
+    content.push(heading('Notes'), para(record.groupText))
   }
+
+  return { type: 'doc', version: 1, content }
 }
+
+// GET /jira/customer-feedback-issues — bugs & stories labelled customer_feedback (open only)
+router.get('/customer-feedback-issues', (req, res) => {
+  void (async () => {
+    const { JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN } = process.env
+    if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_API_TOKEN) {
+      res.status(503).json({ error: 'Jira credentials not configured' })
+      return
+    }
+    const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')
+    const projectKey = process.env.JIRA_PROJECT_KEY ?? 'CDO'
+
+    const resp = await fetch(`https://${JIRA_HOST}/rest/api/3/search/jql`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jql: `project = ${projectKey} AND issuetype in (Bug, Story) AND labels = customer_feedback AND statusCategory not in (Done) ORDER BY created DESC`,
+        fields: ['summary', 'issuetype', 'status'],
+        maxResults: 200,
+      }),
+    })
+
+    const data = await resp.json() as { issues?: { key: string; fields: { summary: string; issuetype: { name: string }; status: { name: string } } }[] }
+    res.json((data.issues ?? []).map(i => ({
+      key: i.key,
+      summary: i.fields.summary,
+      issueType: i.fields.issuetype.name,
+      status: i.fields.status.name,
+    })))
+  })().catch(err => {
+    console.error(err)
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to fetch customer feedback issues' })
+  })
+})
 
 router.get('/epics', (req, res) => {
   void (async () => {
@@ -189,7 +223,7 @@ router.post('/create', (req, res) => {
         issuetype: { name: 'Bug' },
         summary: makeSummary(record),
         description: makeDescription(record),
-        labels: ['askPEI', 'customer_feedback'],
+        labels: ['askPEI', 'customer_feedback', record.classification.toLowerCase().replace(/\s+/g, '_')],
       }
 
       if (engineeringTeamField && engineeringTeamField !== 'customfield_XXXXX') {

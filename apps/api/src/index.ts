@@ -5,6 +5,7 @@ import recordsRouter from './routes/records'
 import jiraRouter from './routes/jira'
 import analyticsRouter from './routes/analytics'
 import classificationsRouter from './routes/classifications'
+import batchesRouter from './routes/batches'
 import { loadDomains } from './lib/domains'
 
 const app = express()
@@ -27,6 +28,7 @@ app.use('/records', recordsRouter)
 app.use('/jira', jiraRouter)
 app.use('/analytics', analyticsRouter)
 app.use('/classifications', classificationsRouter)
+app.use('/batches', batchesRouter)
 
 const PORT = process.env.PORT ?? 3001
 

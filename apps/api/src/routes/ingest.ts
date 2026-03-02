@@ -112,7 +112,7 @@ router.post('/csv', upload.single('file'), (req, res) => {
       .filter((r): r is ParsedRow => r !== null)
 
     if (parsed.length === 0) {
-      res.json({ inserted: 0, updated: 0 })
+      res.json({ inserted: 0, updated: 0, batchId: null })
       return
     }
 
@@ -125,7 +125,6 @@ router.post('/csv', upload.single('file'), (req, res) => {
 
     const existing = await prisma.usageRecord.findMany({
       where: { OR: unique.map(r => ({ userId: r.userId, requestTime: r.requestTime })) },
-      select: { userId: true, requestTime: true },
     })
 
     const existingKeys = new Set(
@@ -139,11 +138,27 @@ router.post('/csv', upload.single('file'), (req, res) => {
       existingKeys.has(`${r.userId}|${r.requestTime.toISOString()}`)
     )
 
+    // Create batch record
+    const batch = await prisma.uploadBatch.create({
+      data: { filename: file.originalname, insertedCount: 0, updatedCount: 0 },
+    })
+
     if (toCreate.length > 0) {
       await prisma.usageRecord.createMany({ data: toCreate })
+      // Fetch IDs of newly created records
+      const created = await prisma.usageRecord.findMany({
+        where: { OR: toCreate.map(r => ({ userId: r.userId, requestTime: r.requestTime })) },
+        select: { id: true },
+      })
+      await prisma.uploadBatchRecord.createMany({
+        data: created.map(r => ({ batchId: batch.id, recordId: r.id, action: 'inserted' })),
+      })
     }
 
     for (const row of toUpdate) {
+      const prev = existing.find(
+        e => e.userId === row.userId && e.requestTime.toISOString() === row.requestTime.toISOString()
+      )
       await prisma.usageRecord.update({
         where: { userId_requestTime: { userId: row.userId, requestTime: row.requestTime } },
         data: {
@@ -158,9 +173,34 @@ router.post('/csv', upload.single('file'), (req, res) => {
           hasFeedback: row.hasFeedback,
         },
       })
+      if (prev) {
+        await prisma.uploadBatchRecord.create({
+          data: {
+            batchId: batch.id,
+            recordId: prev.id,
+            action: 'updated',
+            previousState: {
+              traceId: prev.traceId,
+              requestContent: prev.requestContent,
+              responseContent: prev.responseContent,
+              feedbackValue: prev.feedbackValue,
+              rationale: prev.rationale,
+              toolRoute: prev.toolRoute,
+              ttftSeconds: prev.ttftSeconds,
+              isInternal: prev.isInternal,
+              hasFeedback: prev.hasFeedback,
+            },
+          },
+        })
+      }
     }
 
-    res.json({ inserted: toCreate.length, updated: toUpdate.length })
+    await prisma.uploadBatch.update({
+      where: { id: batch.id },
+      data: { insertedCount: toCreate.length, updatedCount: toUpdate.length },
+    })
+
+    res.json({ inserted: toCreate.length, updated: toUpdate.length, batchId: batch.id })
   })().catch(err => {
     console.error(err)
     if (!res.headersSent) res.status(500).json({ error: 'Ingest failed' })
