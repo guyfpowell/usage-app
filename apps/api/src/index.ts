@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express, { Request, Response, NextFunction } from 'express'
 import ingestRouter from './routes/ingest'
 import recordsRouter from './routes/records'
+import jiraRouter from './routes/jira'
 import { loadDomains } from './lib/domains'
 
 const app = express()
@@ -21,6 +22,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(express.json())
 app.use('/ingest', ingestRouter)
 app.use('/records', recordsRouter)
+app.use('/jira', jiraRouter)
 
 const PORT = process.env.PORT ?? 3001
 
