@@ -125,6 +125,15 @@ export default function RecordsPage() {
       ),
     },
     {
+      accessorKey: 'rationale',
+      header: 'Rationale',
+      cell: ({ row }) => (
+        <span className="text-xs text-gray-700 max-w-xs block truncate" title={row.original.rationale ?? ''}>
+          {row.original.rationale ?? <span className="text-gray-300">—</span>}
+        </span>
+      ),
+    },
+    {
       accessorKey: 'classification',
       header: 'Classification',
       cell: ({ row }) => (
