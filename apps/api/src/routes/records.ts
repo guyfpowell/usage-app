@@ -1,0 +1,111 @@
+import { Router } from 'express'
+import { Prisma } from '@prisma/client'
+import prisma from '../lib/prisma'
+
+const router = Router()
+
+router.get('/', (req, res) => {
+  void (async () => {
+    const {
+      type,
+      hasFeedback,
+      toolRoute,
+      week,
+      page = '1',
+      pageSize = '50',
+    } = req.query as Record<string, string>
+
+    const where: Prisma.UsageRecordWhereInput = {}
+
+    if (type === 'internal') where.isInternal = true
+    else if (type === 'external') where.isInternal = false
+
+    if (hasFeedback === 'true') where.hasFeedback = true
+    else if (hasFeedback === 'false') where.hasFeedback = false
+
+    if (toolRoute) where.toolRoute = toolRoute
+
+    if (week) {
+      try {
+        const { start, end } = parseIsoWeek(week)
+        where.requestTime = { gte: start, lt: end }
+      } catch {
+        res.status(400).json({ error: 'Invalid week format. Use YYYY-WNN' })
+        return
+      }
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1)
+    const size = Math.min(200, Math.max(1, parseInt(pageSize) || 50))
+
+    const [total, records] = await Promise.all([
+      prisma.usageRecord.count({ where }),
+      prisma.usageRecord.findMany({
+        where,
+        orderBy: { requestTime: 'desc' },
+        skip: (pageNum - 1) * size,
+        take: size,
+      }),
+    ])
+
+    res.json({ total, page: pageNum, pageSize: size, records })
+  })().catch(err => {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch records' })
+  })
+})
+
+router.patch('/:id', (req, res) => {
+  void (async () => {
+    const id = parseInt(req.params.id)
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid id' })
+      return
+    }
+
+    const { classification, groupText, ticketText } = req.body as Record<string, string | undefined>
+
+    const record = await prisma.usageRecord.update({
+      where: { id },
+      data: {
+        ...(classification !== undefined && { classification }),
+        ...(groupText !== undefined && { groupText }),
+        ...(ticketText !== undefined && { ticketText }),
+      },
+    })
+
+    res.json(record)
+  })().catch(err => {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2025'
+    ) {
+      res.status(404).json({ error: 'Record not found' })
+    } else {
+      console.error(err)
+      res.status(500).json({ error: 'Update failed' })
+    }
+  })
+})
+
+function parseIsoWeek(week: string): { start: Date; end: Date } {
+  const match = week.match(/^(\d{4})-W(\d{1,2})$/)
+  if (!match) throw new Error(`Invalid ISO week: ${week}`)
+
+  const year = parseInt(match[1])
+  const weekNum = parseInt(match[2])
+
+  // Jan 4 is always in ISO week 1
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const dow = jan4.getUTCDay() || 7 // 1=Mon … 7=Sun
+
+  const weekStart = new Date(jan4)
+  weekStart.setUTCDate(jan4.getUTCDate() - (dow - 1) + (weekNum - 1) * 7)
+
+  const weekEnd = new Date(weekStart)
+  weekEnd.setUTCDate(weekStart.getUTCDate() + 7)
+
+  return { start: weekStart, end: weekEnd }
+}
+
+export default router
