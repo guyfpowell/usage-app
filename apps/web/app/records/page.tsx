@@ -152,6 +152,24 @@ export default function RecordsPage() {
       ),
     },
     {
+      accessorKey: 'requestContent',
+      header: 'Request',
+      cell: ({ row }) => (
+        <p className="text-xs text-gray-700 whitespace-pre-wrap max-w-sm break-words">
+          {row.original.requestContent}
+        </p>
+      ),
+    },
+    {
+      accessorKey: 'responseContent',
+      header: 'Response',
+      cell: ({ row }) => (
+        <p className="text-xs text-gray-700 whitespace-pre-wrap max-w-sm break-words">
+          {row.original.responseContent}
+        </p>
+      ),
+    },
+    {
       accessorKey: 'groupText',
       header: 'Group',
       cell: ({ row }) => (
