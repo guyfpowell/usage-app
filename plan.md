@@ -1,274 +1,289 @@
-# Claude Code CLI Instructions
+# Usage App — Implementation Plan
 
-## Build in Existing Folder: /Users/guy-pei/code/personal/usage
+**Stack:** Next.js · Express · PostgreSQL · Prisma · fast-csv · jira.js · Docker
+**Monorepo root:** `/Users/guy-pei/code/personal/usage`
+**Updated:** 2026-03-02
 
-Generated: 2026-03-02T09:43:53.854007 UTC
+---
 
-------------------------------------------------------------------------
+## Overview
 
-# ✅ Starting Assumptions
+A lightweight internal tool for ingesting, reviewing, and acting on Claude AI usage records. Users upload CSVs, browse and classify records, trigger Jira ticket creation, and view analytics.
 
--   Claude CLI is already installed
--   You want to build directly inside:
+---
 
-/Users/guy-pei/code/personal/usage
+## Phase Dependency Graph
 
--   This is a test app (lightweight, clean architecture, well-supported
-    libraries only)
-
-Stack:
-
--   Next.js (React frontend)
--   Node + Express (API)
--   PostgreSQL (Docker)
--   Prisma ORM
--   fast-csv
--   jira.js
--   Docker (database only)
-
-------------------------------------------------------------------------
-
-# 1️⃣ Navigate to Your Project Folder
-
-``` bash
-cd /Users/guy-pei/code/personal/usage
-git init
+```
+Phase 0 — Bootstrap
+    └── Phase 1 — Data Layer
+            └── Phase 2 — API Core
+                    ├── Phase 3 — Jira Integration
+                    ├── Phase 4 — Analytics API
+                    └── Phase 5 — Frontend
+                                    └── Phase 6 — Hardening
 ```
 
-------------------------------------------------------------------------
+---
 
-# 2️⃣ Start Claude in This Folder
+## Phase 0 — Project Bootstrap
 
-``` bash
-claude
+**Goal:** Initialise the monorepo, install tooling, wire up Docker.
+
+**Steps:**
+1. `git init` (already done)
+2. Scaffold pnpm monorepo with workspaces
+3. Add `docker-compose.yml` with Postgres 16
+4. Configure root `tsconfig`, `.eslintrc`, `.gitignore`
+5. Run `pnpm install`
+
+**Claude Prompt:**
 ```
-
-Claude will now operate relative to:
-
-/Users/guy-pei/code/personal/usage
-
-------------------------------------------------------------------------
-
-# 3️⃣ Scaffold the Monorepo
-
-Paste this prompt into Claude:
-
-------------------------------------------------------------------------
-
-## 🧠 Prompt 1 -- Initialise Monorepo Here
-
 Create a TypeScript monorepo IN THIS CURRENT FOLDER with:
+- pnpm workspaces at root
+- apps/api (Express + Prisma)
+- apps/web (Next.js App Router)
+- docker-compose.yml with Postgres 16
+- Strict TypeScript
+- Minimal ESLint
+- No unnecessary abstraction
+- Production-ready structure but lightweight
 
--   pnpm workspaces at root
--   apps/api (Express + Prisma)
--   apps/web (Next.js App Router)
--   docker-compose.yml with Postgres 16
--   Strict TypeScript
--   Minimal ESLint
--   No unnecessary abstraction
--   Production-ready structure but lightweight
+Do NOT create a nested folder. Build everything relative to this directory.
+```
 
-Do NOT create a nested folder. Build everything relative to this
-directory.
-
-------------------------------------------------------------------------
-
-Then run:
-
-``` bash
+**Commands:**
+```bash
 pnpm install
 ```
 
-------------------------------------------------------------------------
+**Done when:** `pnpm install` completes; `docker compose up -d db` starts Postgres.
 
-# 4️⃣ Add Prisma Schema
+---
 
-Run Claude again:
+## Phase 1 — Data Layer
 
-``` bash
-claude
+**Goal:** Define all database models, indexes, and seed reference data.
+
+**Depends on:** Phase 0
+
+**Models:**
+
+| Model | Key Fields |
+|---|---|
+| `UsageRecord` | traceId, userId, requestTime, requestContent, responseContent, feedbackValue, rationale, toolRoute, ttftSeconds, isInternal, hasFeedback, classification (default "To be classified"), groupText, ticketText, jiraIssueKey, jiraIssueUrl |
+| `InternalDomain` | domain (unique) |
+| `Classification` | name (unique), isActive |
+
+**Constraints & Indexes:**
+- Unique constraint: `(userId, requestTime)` on `UsageRecord`
+- Indexes: `toolRoute`, `isInternal`, `hasFeedback`
+
+**Claude Prompt:**
 ```
-
-------------------------------------------------------------------------
-
-## 🧠 Prompt 2 -- Prisma Models
-
 Create Prisma schema with:
 
-UsageRecord: - traceId - userId - requestTime - requestContent -
-responseContent - feedbackValue - rationale - toolRoute - ttftSeconds -
-isInternal (boolean) - hasFeedback (boolean) - classification default
-"To be classified" - groupText - ticketText - jiraIssueKey -
-jiraIssueUrl - unique constraint (userId, requestTime)
+UsageRecord: traceId, userId, requestTime, requestContent,
+responseContent, feedbackValue, rationale, toolRoute, ttftSeconds,
+isInternal (boolean), hasFeedback (boolean), classification default
+"To be classified", groupText, ticketText, jiraIssueKey, jiraIssueUrl,
+unique constraint (userId, requestTime)
 
-InternalDomain: - domain unique
+InternalDomain: domain unique
 
-Classification: - name unique - isActive
+Classification: name unique, isActive
 
-Add indexes: - toolRoute - isInternal - hasFeedback
+Add indexes: toolRoute, isInternal, hasFeedback
+```
 
-------------------------------------------------------------------------
-
-Then:
-
-``` bash
+**Commands:**
+```bash
 docker compose up -d db
 pnpm prisma migrate dev
 ```
 
-------------------------------------------------------------------------
+**Done when:** Migration runs clean; all tables visible in Postgres.
 
-# 5️⃣ CSV Ingest Endpoint
+---
 
-Open Claude again.
+## Phase 2 — API Core
 
-------------------------------------------------------------------------
+**Goal:** CSV ingestion and records CRUD endpoints.
 
-## 🧠 Prompt 3 -- CSV Upload Route
+**Depends on:** Phase 1
 
-Create Express route:
+### 2a — CSV Ingest Endpoint
 
-POST /ingest/csv
+**Route:** `POST /ingest/csv`
 
-Requirements:
+**Logic:**
+- `multer` receives the uploaded file
+- `fast-csv` streams and parses rows
+- Load `InternalDomain` list from DB at startup, cache in memory
+- Derive `isInternal` — email ends with any known domain
+- Derive `hasFeedback` — `feedbackValue` OR `rationale` is non-null
+- **Upsert** on `(userId, requestTime)` — never overwrite `classification`, `groupText`, `ticketText`
+- Return `{ inserted, updated }` counts
 
--   multer for file upload
--   fast-csv streaming parser
--   Load InternalDomain from DB
--   isInternal = email endsWith any domain
--   hasFeedback = feedbackValue OR rationale not null
--   Upsert on (userId, requestTime)
--   DO NOT overwrite classification, groupText, ticketText
--   Return: inserted count updated count
-
+**Claude Prompt:**
+```
+Create Express route POST /ingest/csv:
+- multer for file upload
+- fast-csv streaming parser
+- Load InternalDomain from DB
+- isInternal = email endsWith any domain
+- hasFeedback = feedbackValue OR rationale not null
+- Upsert on (userId, requestTime)
+- DO NOT overwrite classification, groupText, ticketText
+- Return: inserted count, updated count
 Use Prisma client properly.
-
-------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-# 6️⃣ Records API
-
-## 🧠 Prompt 4 -- Records Routes
-
-Create:
-
-GET /records Filters: - internal/external - hasFeedback - toolRoute -
-ISO week filter
-
-PATCH /records/:id Update: - classification - groupText - ticketText
-
-------------------------------------------------------------------------
-
-# 7️⃣ Jira Integration
-
-Add environment variables in apps/api/.env
-
-    DATABASE_URL=postgresql://app:app@localhost:5432/usage
-    JIRA_HOST=your-domain.atlassian.net
-    JIRA_EMAIL=...
-    JIRA_API_TOKEN=...
-    JIRA_PROJECT_KEY=...
-    JIRA_ISSUE_TYPE=Task
-
-------------------------------------------------------------------------
-
-## 🧠 Prompt 5 -- Jira Creation Route
-
-Create:
-
-POST /jira/create
-
-Input: array of UsageRecord IDs
-
-For each record: - Create Jira issue using jira.js - Summary from
-requestContent - Description includes: userId toolRoute feedbackValue
-rationale - Store: jiraIssueKey jiraIssueUrl - Automatically update
-ticketText with URL
-
-Return created issue details.
-
-------------------------------------------------------------------------
-
-# 8️⃣ Analytics
-
-## 🧠 Prompt 6 -- Analytics Endpoints
-
-Create:
-
-GET /analytics/weekly - Weekly usage count - Weekly avg ttftSeconds
-
-GET /analytics/overall - Overall avg ttftSeconds
-
-GET /analytics/feedback-by-route - Count hasFeedback true grouped by
-toolRoute - Order descending
-
-Use raw SQL via Prisma.
-
-------------------------------------------------------------------------
-
-# 9️⃣ Frontend (Next.js)
-
-Open Claude again.
-
-------------------------------------------------------------------------
-
-## 🧠 Prompt 7 -- Build UI
-
-Create pages:
-
-/upload - Drag & drop CSV - Call /ingest/csv - Show inserted vs updated
-
-/records - Table using TanStack Table - Filters: internal/external
-hasFeedback toolRoute week - Editable: classification (dropdown from DB)
-groupText ticketText - Bulk select → Create Jira
-
-/analytics - Weekly usage table - Avg TTFT overall - Feedback by
-toolRoute
-
-Use: - React Query - Minimal Tailwind - No heavy UI frameworks
-
-------------------------------------------------------------------------
-
-# 🔁 Recommended Claude Workflow
-
-Work incrementally:
-
-1.  Generate one feature
-2.  Run it
-3.  Fix errors
-4.  Ask Claude to modify specific files only
-5.  Avoid full repo regeneration
-
-------------------------------------------------------------------------
-
-# 🚀 Start Dev
-
-In separate terminals:
-
-API:
-
-``` bash
-pnpm --filter api dev
 ```
 
-Web:
+### 2b — Records API
 
-``` bash
+**Routes:**
+- `GET /records` — paginated list; filters: `internal/external`, `hasFeedback`, `toolRoute`, ISO week
+- `PATCH /records/:id` — update `classification`, `groupText`, `ticketText`
+
+**Claude Prompt:**
+```
+Create:
+GET /records — filters: internal/external, hasFeedback, toolRoute, ISO week filter
+PATCH /records/:id — update: classification, groupText, ticketText
+```
+
+**Done when:** CSV upload returns correct counts; record edits persist correctly.
+
+---
+
+## Phase 3 — Jira Integration
+
+**Goal:** Create Jira issues from selected usage records and write back keys.
+
+**Depends on:** Phase 2
+
+**Environment variables** in `apps/api/.env`:
+```
+DATABASE_URL=postgresql://app:app@localhost:5432/usage
+JIRA_HOST=your-domain.atlassian.net
+JIRA_EMAIL=...
+JIRA_API_TOKEN=...
+JIRA_PROJECT_KEY=...
+JIRA_ISSUE_TYPE=Task
+```
+
+**Route:** `POST /jira/create`
+
+**Logic:**
+- Accept array of `UsageRecord` IDs
+- For each record, create a Jira issue via `jira.js`:
+  - Summary: derived from `requestContent`
+  - Description: `userId`, `toolRoute`, `feedbackValue`, `rationale`
+- Write back `jiraIssueKey`, `jiraIssueUrl`, and `ticketText` (URL) to the record
+- Return list of created issue details
+
+**Claude Prompt:**
+```
+Create POST /jira/create:
+Input: array of UsageRecord IDs
+For each record:
+- Create Jira issue using jira.js
+- Summary from requestContent
+- Description includes: userId, toolRoute, feedbackValue, rationale
+- Store: jiraIssueKey, jiraIssueUrl
+- Automatically update ticketText with URL
+Return created issue details.
+```
+
+**Done when:** Jira issues appear in the configured project with correct fields; keys are stored in the DB.
+
+---
+
+## Phase 4 — Analytics API
+
+**Goal:** Expose aggregated metrics endpoints for the frontend.
+
+**Depends on:** Phase 2
+
+**Routes:**
+
+| Endpoint | Returns |
+|---|---|
+| `GET /analytics/weekly` | Weekly usage count + avg `ttftSeconds` |
+| `GET /analytics/overall` | Overall avg `ttftSeconds` |
+| `GET /analytics/feedback-by-route` | `hasFeedback=true` count grouped by `toolRoute`, descending |
+
+**Claude Prompt:**
+```
+Create:
+GET /analytics/weekly — weekly usage count, weekly avg ttftSeconds
+GET /analytics/overall — overall avg ttftSeconds
+GET /analytics/feedback-by-route — count hasFeedback true grouped by toolRoute, order descending
+Use raw SQL via Prisma.
+```
+
+**Done when:** All three endpoints return data that matches the DB state.
+
+---
+
+## Phase 5 — Frontend (Next.js)
+
+**Goal:** Build the three core UI pages backed by the API.
+
+**Depends on:** Phase 2, Phase 3, Phase 4
+
+**Pages:**
+
+| Route | Description |
+|---|---|
+| `/upload` | Drag & drop CSV upload; displays inserted vs updated counts |
+| `/records` | TanStack Table with filters, inline editing, bulk Jira creation |
+| `/analytics` | Weekly usage table, avg TTFT card, feedback-by-route breakdown |
+
+**Tech choices:**
+- React Query for all data fetching and mutations
+- Minimal Tailwind (no heavy component libraries)
+- TanStack Table for records view
+- Classification dropdown populated from `GET /classifications`
+
+**Claude Prompt:**
+```
+Create pages:
+/upload — Drag & drop CSV, call /ingest/csv, show inserted vs updated
+/records — TanStack Table, filters: internal/external hasFeedback toolRoute week,
+  editable: classification (dropdown from DB) groupText ticketText,
+  bulk select → Create Jira
+/analytics — Weekly usage table, avg TTFT overall, feedback by toolRoute
+Use: React Query, minimal Tailwind, no heavy UI frameworks.
+```
+
+**Done when:** All three pages render; data flows end-to-end from upload through to Jira creation.
+
+---
+
+## Phase 6 — Hardening & Future Work
+
+**Goal:** Production readiness (deferred; out of scope for initial build).
+
+- Authentication & role-based access control
+- Background job queue for Jira (BullMQ or similar)
+- CSV schema validation via Zod before DB insert
+- Structured logging (pino)
+- Test coverage (vitest)
+
+---
+
+## Dev Workflow
+
+```bash
+# Start Postgres
+docker compose up -d db
+
+# Start API (port 3001)
+pnpm --filter api dev
+
+# Start Web (port 3000)
 pnpm --filter web dev
 ```
 
-------------------------------------------------------------------------
-
-# Future Improvements
-
--   Authentication
--   Role-based access
--   Background job queue for Jira
--   CSV schema validation via zod
--   Logging (pino)
--   Tests (vitest)
-
-------------------------------------------------------------------------
-
-End of Instructions for: /Users/guy-pei/code/personal/usage
+**Incremental rule:** Generate one phase at a time. Run it. Fix errors. Then move to the next phase. Avoid full-repo regeneration.
