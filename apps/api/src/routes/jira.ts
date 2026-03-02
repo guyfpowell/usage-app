@@ -15,36 +15,110 @@ function getClient(): Version3Client {
   })
 }
 
-function makeSummary(requestContent: string): string {
-  const clean = requestContent.replace(/\s+/g, ' ').trim()
-  return clean.length > 255 ? clean.slice(0, 252) + '...' : clean
+function makeSummary(record: { rationale: string | null; userId: string }): string {
+  const parts = ['User feedback']
+  if (record.rationale?.trim()) parts.push(record.rationale.trim())
+  parts.push(record.userId)
+  const full = parts.join(' - ')
+  return full.length > 255 ? full.slice(0, 252) + '...' : full
+}
+
+function heading(text: string) {
+  return {
+    type: 'heading',
+    attrs: { level: 2 },
+    content: [{ type: 'text', text }],
+  }
+}
+
+function para(text: string) {
+  return {
+    type: 'paragraph',
+    content: [{ type: 'text', text: text || '—' }],
+  }
 }
 
 function makeDescription(record: {
-  userId: string
-  toolRoute: string
-  feedbackValue: string | null
-  rationale: string | null
+  requestContent: string
+  responseContent: string
+  classification: string
+  groupText: string | null
+  traceId: string | null
+  requestTime: Date
 }) {
-  const fields: { label: string; value: string }[] = [
-    { label: 'User', value: record.userId },
-    { label: 'Tool Route', value: record.toolRoute },
-  ]
-  if (record.feedbackValue) fields.push({ label: 'Feedback', value: record.feedbackValue })
-  if (record.rationale) fields.push({ label: 'Rationale', value: record.rationale })
+  const classification = [record.classification, record.groupText].filter(Boolean).join(' - ')
 
   return {
     type: 'doc',
     version: 1,
-    content: fields.map(f => ({
-      type: 'paragraph',
-      content: [
-        { type: 'text', text: `${f.label}: `, marks: [{ type: 'strong' }] },
-        { type: 'text', text: f.value },
-      ],
-    })),
+    content: [
+      heading('BACKGROUND'),
+      para('Ask PEI feedback -'),
+      heading('QUESTION'),
+      para('User Prompt / Query:'),
+      para(record.requestContent),
+      heading('CURRENT ANSWER (AskPEI Output)'),
+      para(record.responseContent),
+      heading('DEFECT CLASSIFICATION'),
+      para(classification),
+      heading('SUPPORTING INFORMATION / TRACE'),
+      para(record.traceId ?? '—'),
+      heading('Model Version'),
+      para('<Model Name / AskPEI Version>'),
+      heading('Environment'),
+      para('Prod'),
+      heading('Timestamp'),
+      para(record.requestTime.toISOString()),
+    ],
   }
 }
+
+// Discovery endpoint — call GET /jira/fields once credentials are configured
+// to find the customfield IDs for Engineering Team and Skillset
+router.get('/fields', (req, res) => {
+  void (async () => {
+    const client = getClient()
+    const projectKey = process.env.JIRA_PROJECT_KEY ?? 'CDO'
+    const { search } = req.query as { search?: string }
+
+    const { JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN } = process.env
+    const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')
+    const baseUrl = `https://${JIRA_HOST}`
+
+    // Step 1: get issue types for the project
+    const typesResp = await fetch(
+      `${baseUrl}/rest/api/3/issue/createmeta/${projectKey}/issuetypes`,
+      { headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } }
+    )
+    const typesData = await typesResp.json() as { issueTypes?: { id: string; name: string }[] }
+
+    if ((req.query as Record<string, string>).debug === '1') {
+      res.json({ status: typesResp.status, typesData })
+      return
+    }
+
+    const issueTypes = typesData.issueTypes ?? []
+    const bugType = issueTypes.find(t => /bug/i.test(t.name)) ?? issueTypes[0]
+    if (!bugType?.id) { res.json([]); return }
+
+    // Step 2: get fields for that issue type
+    const fieldsResp = await fetch(
+      `${baseUrl}/rest/api/3/issue/createmeta/${projectKey}/issuetypes/${bugType.id}`,
+      { headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } }
+    )
+    const fieldsData = await fieldsResp.json() as { fields?: { fieldId: string; name: string; schema?: { type: string } }[] }
+    const fields = fieldsData.fields ?? []
+
+    const list = search
+      ? fields.filter(f => new RegExp(search, 'i').test(f.name ?? ''))
+      : fields
+
+    res.json(list.map(f => ({ id: f.fieldId, name: f.name, type: f.schema?.type })))
+  })().catch(err => {
+    console.error(err)
+    if (!res.headersSent) res.status(500).json({ error: (err as Error).message })
+  })
+})
 
 router.post('/create', (req, res) => {
   void (async () => {
@@ -73,22 +147,31 @@ router.post('/create', (req, res) => {
       return
     }
 
-    const projectKey = process.env.JIRA_PROJECT_KEY ?? 'PROJ'
-    const issueType = process.env.JIRA_ISSUE_TYPE ?? 'Task'
+    const projectKey = process.env.JIRA_PROJECT_KEY ?? 'CDO'
     const jiraHost = process.env.JIRA_HOST!
+    const engineeringTeamField = process.env.JIRA_CUSTOM_ENGINEERING_TEAM
+    const skillsetField = process.env.JIRA_CUSTOM_SKILLSET
 
     const results: { id: number; jiraIssueKey: string; jiraIssueUrl: string }[] = []
 
     for (const record of records) {
-      const issue = await client.issues.createIssue({
-        fields: {
-          project: { key: projectKey },
-          summary: makeSummary(record.requestContent),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          description: makeDescription(record) as any,
-          issuetype: { name: issueType },
-        },
-      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fields: Record<string, any> = {
+        project: { key: projectKey },
+        issuetype: { name: 'Bug' },
+        summary: makeSummary(record),
+        description: makeDescription(record),
+        labels: ['askPEI', 'customer_feedback'],
+      }
+
+      if (engineeringTeamField && engineeringTeamField !== 'customfield_XXXXX') {
+        fields[engineeringTeamField] = { value: 'Data - Subs' }
+      }
+      if (skillsetField && skillsetField !== 'customfield_XXXXX') {
+        fields[skillsetField] = [{ value: 'Data Science' }]
+      }
+
+      const issue = await client.issues.createIssue({ fields })
 
       const jiraIssueKey = issue.key!
       const jiraIssueUrl = `https://${jiraHost}/browse/${jiraIssueKey}`
