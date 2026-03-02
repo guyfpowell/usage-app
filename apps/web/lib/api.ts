@@ -34,6 +34,8 @@ export interface RecordFilters {
   hasFeedback?: boolean
   toolRoute?: string
   week?: string
+  dateFrom?: string  // YYYY-MM-DD
+  dateTo?: string    // YYYY-MM-DD (inclusive)
   page?: number
   pageSize?: number
 }
@@ -79,6 +81,8 @@ export function getRecords(filters: RecordFilters = {}) {
   if (filters.hasFeedback !== undefined) params.set('hasFeedback', String(filters.hasFeedback))
   if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
   if (filters.week) params.set('week', filters.week)
+  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
+  if (filters.dateTo) params.set('dateTo', filters.dateTo)
   if (filters.page) params.set('page', String(filters.page))
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize))
   return apiFetch<RecordsResponse>(`/records?${params}`)

@@ -30,14 +30,33 @@ router.get('/weekly', (req, res) => {
       Prisma.sql``
 
     const rows = await prisma.$queryRaw<WeeklyRow[]>`
+      WITH date_range AS (
+        SELECT
+          DATE_TRUNC('week', MIN("requestTime")) AS first_week,
+          DATE_TRUNC('week', NOW())              AS last_week
+        FROM "UsageRecord"
+        ${typeFilter}
+      ),
+      weeks AS (
+        SELECT generate_series(first_week, last_week, '1 week'::interval) AS week
+        FROM date_range
+      ),
+      agg AS (
+        SELECT
+          DATE_TRUNC('week', "requestTime") AS week,
+          COUNT(*)::int                     AS count,
+          AVG("ttftSeconds")                AS avg_ttft
+        FROM "UsageRecord"
+        ${typeFilter}
+        GROUP BY week
+      )
       SELECT
-        DATE_TRUNC('week', "requestTime") AS week,
-        COUNT(*)::int                     AS count,
-        AVG("ttftSeconds")                AS avg_ttft
-      FROM "UsageRecord"
-      ${typeFilter}
-      GROUP BY week
-      ORDER BY week DESC
+        w.week,
+        COALESCE(a.count, 0)::int AS count,
+        a.avg_ttft
+      FROM weeks w
+      LEFT JOIN agg a ON a.week = w.week
+      ORDER BY w.week DESC
     `
 
     res.json(

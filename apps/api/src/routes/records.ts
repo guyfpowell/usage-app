@@ -11,6 +11,8 @@ router.get('/', (req, res) => {
       hasFeedback,
       toolRoute,
       week,
+      dateFrom,
+      dateTo,
       page = '1',
       pageSize = '50',
     } = req.query as Record<string, string>
@@ -33,6 +35,10 @@ router.get('/', (req, res) => {
         res.status(400).json({ error: 'Invalid week format. Use YYYY-WNN' })
         return
       }
+    }
+
+    if (dateFrom || dateTo) {
+      where.requestTime = parseDateRange(dateFrom, dateTo)
     }
 
     const pageNum = Math.max(1, parseInt(page) || 1)
@@ -88,7 +94,23 @@ router.patch('/:id', (req, res) => {
   })
 })
 
-function parseIsoWeek(week: string): { start: Date; end: Date } {
+/** Returns a half-open [gte, lt) range suitable for a Prisma requestTime filter.
+ *  dateTo is made inclusive by advancing to the start of the next UTC day. */
+export function parseDateRange(
+  dateFrom?: string,
+  dateTo?: string
+): { gte?: Date; lt?: Date } {
+  const range: { gte?: Date; lt?: Date } = {}
+  if (dateFrom) range.gte = new Date(dateFrom)
+  if (dateTo) {
+    const end = new Date(dateTo)
+    end.setUTCDate(end.getUTCDate() + 1)
+    range.lt = end
+  }
+  return range
+}
+
+export function parseIsoWeek(week: string): { start: Date; end: Date } {
   const match = week.match(/^(\d{4})-W(\d{1,2})$/)
   if (!match) throw new Error(`Invalid ISO week: ${week}`)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { marked } from 'marked'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -67,9 +67,15 @@ function InlineEdit({ value, onSave }: { value: string; onSave: (v: string) => v
       key={value}
       defaultValue={value}
       onBlur={e => { if (e.target.value !== value) onSave(e.target.value) }}
-      className="border rounded px-1 py-0.5 text-sm w-36 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 py-1 w-36"
     />
   )
+}
+
+type DateMode = 'all' | 'last7' | 'custom'
+
+function toDateStr(d: Date) {
+  return d.toISOString().split('T')[0]
 }
 
 export default function RecordsPage() {
@@ -77,6 +83,9 @@ export default function RecordsPage() {
   const [filters, setFilters] = useState<RecordFilters>({ page: 1, pageSize: 50 })
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [modal, setModal] = useState<{ title: string; content: string } | null>(null)
+  const [dateMode, setDateMode] = useState<DateMode>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['records', filters],
@@ -117,7 +126,7 @@ export default function RecordsPage() {
           type="checkbox"
           checked={table.getIsAllRowsSelected()}
           onChange={table.getToggleAllRowsSelectedHandler()}
-          className="cursor-pointer"
+          className="w-4 h-4 cursor-pointer accent-blue-600"
         />
       ),
       cell: ({ row }) => (
@@ -125,7 +134,7 @@ export default function RecordsPage() {
           type="checkbox"
           checked={row.getIsSelected()}
           onChange={row.getToggleSelectedHandler()}
-          className="cursor-pointer"
+          className="w-4 h-4 cursor-pointer accent-blue-600"
         />
       ),
       size: 40,
@@ -134,7 +143,7 @@ export default function RecordsPage() {
       accessorKey: 'userId',
       header: 'User',
       cell: ({ row }) => (
-        <span className="text-xs font-mono" title={row.original.userId}>
+        <span className="text-xs font-mono text-gray-600" title={row.original.userId}>
           {row.original.userId.length > 28 ? row.original.userId.slice(0, 28) + '…' : row.original.userId}
         </span>
       ),
@@ -143,17 +152,23 @@ export default function RecordsPage() {
       accessorKey: 'requestTime',
       header: 'Time',
       cell: ({ row }) => (
-        <span className="text-xs whitespace-nowrap">
+        <span className="text-xs whitespace-nowrap text-gray-600">
           {new Date(row.original.requestTime).toLocaleString()}
         </span>
       ),
     },
-    { accessorKey: 'toolRoute', header: 'Route' },
+    {
+      accessorKey: 'toolRoute',
+      header: 'Route',
+      cell: ({ row }) => (
+        <span className="text-xs font-mono text-gray-700">{row.original.toolRoute}</span>
+      ),
+    },
     {
       accessorKey: 'isInternal',
       header: 'Int.',
       cell: ({ row }) => (
-        <span className={row.original.isInternal ? 'text-blue-600' : 'text-gray-400'}>
+        <span className={`text-xs font-medium ${row.original.isInternal ? 'text-blue-600' : 'text-gray-400'}`}>
           {row.original.isInternal ? 'Yes' : 'No'}
         </span>
       ),
@@ -162,7 +177,7 @@ export default function RecordsPage() {
       accessorKey: 'hasFeedback',
       header: 'FB',
       cell: ({ row }) => (
-        <span className={row.original.hasFeedback ? 'text-green-600' : 'text-gray-400'}>
+        <span className={`text-xs font-medium ${row.original.hasFeedback ? 'text-green-600' : 'text-gray-400'}`}>
           {row.original.hasFeedback ? 'Yes' : 'No'}
         </span>
       ),
@@ -171,7 +186,7 @@ export default function RecordsPage() {
       accessorKey: 'rationale',
       header: 'Rationale',
       cell: ({ row }) => (
-        <span className="text-xs text-gray-700 max-w-xs block truncate" title={row.original.rationale ?? ''}>
+        <span className="text-xs text-gray-600 max-w-xs block truncate" title={row.original.rationale ?? ''}>
           {row.original.rationale ?? <span className="text-gray-300">—</span>}
         </span>
       ),
@@ -185,7 +200,7 @@ export default function RecordsPage() {
           onChange={e =>
             patch.mutate({ id: row.original.id, update: { classification: e.target.value } })
           }
-          className="border rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 py-1"
         >
           <option value="To be classified">To be classified</option>
           {classifications?.map(c => (
@@ -199,10 +214,13 @@ export default function RecordsPage() {
       header: 'Request',
       cell: ({ row }) => {
         const text = row.original.requestContent
-        const preview = text.split('\n').slice(0, 3).join('\n')
+        const preview = text.split('\n').slice(0, 8).join('\n')
         return (
           <div className="max-w-xs">
-            <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{preview}{text.length > preview.length ? '…' : ''}</p>
+            <p
+              className="text-xs text-gray-600 whitespace-pre-wrap break-words"
+              style={{ display: '-webkit-box', WebkitLineClamp: 8, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties}
+            >{preview}</p>
             {text.length > preview.length && (
               <button onClick={() => setModal({ title: 'Request', content: text })} className="text-xs text-blue-600 hover:underline mt-1">Read more</button>
             )}
@@ -215,10 +233,13 @@ export default function RecordsPage() {
       header: 'Response',
       cell: ({ row }) => {
         const text = row.original.responseContent
-        const preview = text.split('\n').slice(0, 3).join('\n')
+        const preview = text.split('\n').slice(0, 8).join('\n')
         return (
           <div className="max-w-xs">
-            <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{preview}{text.length > preview.length ? '…' : ''}</p>
+            <p
+              className="text-xs text-gray-600 whitespace-pre-wrap break-words"
+              style={{ display: '-webkit-box', WebkitLineClamp: 8, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties}
+            >{preview}</p>
             {text.length > preview.length && (
               <button onClick={() => setModal({ title: 'Response', content: text })} className="text-xs text-blue-600 hover:underline mt-1">Read more</button>
             )}
@@ -245,7 +266,7 @@ export default function RecordsPage() {
             href={row.original.jiraIssueUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-blue-600 underline text-sm"
+            className="text-blue-600 hover:underline text-sm font-medium"
           >
             {row.original.jiraIssueKey}
           </a>
@@ -274,16 +295,31 @@ export default function RecordsPage() {
     setFilters(f => ({ ...f, page: 1, [key]: value }))
   }
 
+  function handleDateMode(mode: DateMode) {
+    setDateMode(mode)
+    if (mode === 'all') {
+      setFilters(f => { const { dateFrom: _a, dateTo: _b, ...rest } = f; return { ...rest, page: 1 } })
+    } else if (mode === 'last7') {
+      const from = new Date()
+      from.setDate(from.getDate() - 7)
+      setFilters(f => { const { dateTo: _b, ...rest } = f; return { ...rest, page: 1, dateFrom: toDateStr(from) } })
+    }
+    // 'custom' — filters updated as the user fills in the date inputs
+  }
+
   return (
-    <div>
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Records</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Records</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{data?.total ?? 0} total records</p>
+        </div>
         {selectedIds.length > 0 && (
           <button
             onClick={() => createJira.mutate(selectedIds)}
             disabled={createJira.isPending}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors focus:ring-4 focus:ring-blue-300"
           >
             {createJira.isPending ? 'Creating…' : `Create Jira (${selectedIds.length})`}
           </button>
@@ -291,115 +327,154 @@ export default function RecordsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <select
-          value={filters.type ?? ''}
-          onChange={e =>
-            setFilter('type', (e.target.value as RecordFilters['type']) || undefined)
-          }
-          className="border rounded px-2 py-1 text-sm bg-white"
-        >
-          <option value="">All users</option>
-          <option value="internal">Internal</option>
-          <option value="external">External</option>
-        </select>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <select
+            value={filters.type ?? ''}
+            onChange={e =>
+              setFilter('type', (e.target.value as RecordFilters['type']) || undefined)
+            }
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+          >
+            <option value="">All users</option>
+            <option value="internal">Internal</option>
+            <option value="external">External</option>
+          </select>
 
-        <select
-          value={filters.hasFeedback === undefined ? '' : String(filters.hasFeedback)}
-          onChange={e =>
-            setFilter(
-              'hasFeedback',
-              e.target.value === '' ? undefined : e.target.value === 'true'
-            )
-          }
-          className="border rounded px-2 py-1 text-sm bg-white"
-        >
-          <option value="">All feedback</option>
-          <option value="true">Has feedback</option>
-          <option value="false">No feedback</option>
-        </select>
+          <select
+            value={filters.hasFeedback === undefined ? '' : String(filters.hasFeedback)}
+            onChange={e =>
+              setFilter(
+                'hasFeedback',
+                e.target.value === '' ? undefined : e.target.value === 'true'
+              )
+            }
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+          >
+            <option value="">All feedback</option>
+            <option value="true">Has feedback</option>
+            <option value="false">No feedback</option>
+          </select>
 
-        <input
-          placeholder="Tool route"
-          value={filters.toolRoute ?? ''}
-          onChange={e => setFilter('toolRoute', e.target.value || undefined)}
-          className="border rounded px-2 py-1 text-sm w-40"
-        />
+          <input
+            placeholder="Tool route"
+            value={filters.toolRoute ?? ''}
+            onChange={e => setFilter('toolRoute', e.target.value || undefined)}
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2 w-40"
+          />
 
-        <input
-          placeholder="Week (2024-W05)"
-          value={filters.week ?? ''}
-          onChange={e => setFilter('week', e.target.value || undefined)}
-          className="border rounded px-2 py-1 text-sm w-36"
-        />
+          {/* Date range filter */}
+          <div className="flex items-center rounded-lg border border-gray-300 overflow-hidden text-sm">
+            {(['all', 'last7', 'custom'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => handleDateMode(mode)}
+                className={`px-3 py-2 transition-colors ${
+                  dateMode === mode
+                    ? 'bg-blue-700 text-white font-medium'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {mode === 'all' ? 'All' : mode === 'last7' ? 'Last 7 days' : 'Custom'}
+              </button>
+            ))}
+          </div>
+
+          {dateMode === 'custom' && (
+            <>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => {
+                  setCustomFrom(e.target.value)
+                  setFilters(f => ({ ...f, page: 1, dateFrom: e.target.value || undefined }))
+                }}
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+              />
+              <span className="text-sm text-gray-400">to</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={e => {
+                  setCustomTo(e.target.value)
+                  setFilters(f => ({ ...f, page: 1, dateTo: e.target.value || undefined }))
+                }}
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       {isLoading ? (
-        <p className="text-gray-400 py-8 text-center">Loading…</p>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-gray-400">Loading…</p>
+        </div>
       ) : isError ? (
-        <p className="text-red-500 py-8 text-center">Failed to load records</p>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-red-500">Failed to load records</p>
+        </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded border bg-white">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                {table.getHeaderGroups().map(hg => (
-                  <tr key={hg.id}>
-                    {hg.headers.map(h => (
-                      <th
-                        key={h.id}
-                        className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide"
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {table.getRowModel().rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={columns.length} className="px-3 py-8 text-center text-gray-400">
-                      No records found
-                    </td>
-                  </tr>
-                ) : (
-                  table.getRowModel().rows.map(row => (
-                    <tr
-                      key={row.id}
-                      className={row.getIsSelected() ? 'bg-blue-50' : 'hover:bg-gray-50'}
-                    >
-                      {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-3 py-2">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  {table.getHeaderGroups().map(hg => (
+                    <tr key={hg.id}>
+                      {hg.headers.map(h => (
+                        <th
+                          key={h.id}
+                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                        </th>
                       ))}
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {table.getRowModel().rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={columns.length} className="px-4 py-10 text-center text-gray-400">
+                        No records found
+                      </td>
+                    </tr>
+                  ) : (
+                    table.getRowModel().rows.map(row => (
+                      <tr
+                        key={row.id}
+                        className={row.getIsSelected() ? 'bg-blue-50' : 'hover:bg-gray-50'}
+                      >
+                        {row.getVisibleCells().map(cell => (
+                          <td key={cell.id} className="px-4 py-3">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
-            <span>{data?.total ?? 0} total</span>
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <span className="text-gray-600">Page {currentPage} of {totalPages || 1}</span>
             <div className="flex items-center gap-2">
               <button
                 disabled={currentPage <= 1}
                 onClick={() => setFilters(f => ({ ...f, page: currentPage - 1 }))}
-                className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-100"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-gray-700 font-medium"
               >
-                Prev
+                Previous
               </button>
-              <span>
-                {currentPage} / {totalPages || 1}
-              </span>
               <button
                 disabled={currentPage >= totalPages}
                 onClick={() => setFilters(f => ({ ...f, page: currentPage + 1 }))}
-                className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-100"
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-gray-700 font-medium"
               >
                 Next
               </button>

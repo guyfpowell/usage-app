@@ -3,7 +3,7 @@ import multer from 'multer'
 import { parse } from 'fast-csv'
 import { Readable } from 'stream'
 import prisma from '../lib/prisma'
-import { isInternalEmail } from '../lib/domains'
+import { isInternalEmail, loadDomains } from '../lib/domains'
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -12,11 +12,11 @@ const upload = multer({
 
 const router = Router()
 
-interface CsvRow {
+export interface CsvRow {
   [key: string]: string
 }
 
-interface ParsedRow {
+export interface ParsedRow {
   traceId: string | null
   userId: string
   requestTime: Date
@@ -30,7 +30,7 @@ interface ParsedRow {
   hasFeedback: boolean
 }
 
-function col(row: CsvRow, ...names: string[]): string | undefined {
+export function col(row: CsvRow, ...names: string[]): string | undefined {
   for (const name of names) {
     const val = row[name]
     if (val !== undefined && val !== '') return val
@@ -38,13 +38,26 @@ function col(row: CsvRow, ...names: string[]): string | undefined {
   return undefined
 }
 
-function parseRow(row: CsvRow): ParsedRow | null {
+/** Parses a date string in either ISO format or DD/MM/YYYY HH:MM format. */
+export function parseRequestTime(raw: string): Date | null {
+  // DD/MM/YYYY HH:MM  or  DD/MM/YYYY HH:MM:SS
+  const ddmmMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{2}:\d{2}(?::\d{2})?)$/)
+  if (ddmmMatch) {
+    const [, dd, mm, yyyy, time] = ddmmMatch
+    const d = new Date(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${time}`)
+    return isNaN(d.getTime()) ? null : d
+  }
+  const d = new Date(raw)
+  return isNaN(d.getTime()) ? null : d
+}
+
+export function parseRow(row: CsvRow): ParsedRow | null {
   const userId = col(row, 'userId', 'user_id')
   const requestTimeStr = col(row, 'requestTime', 'request_time')
   if (!userId || !requestTimeStr) return null
 
-  const requestTime = new Date(requestTimeStr)
-  if (isNaN(requestTime.getTime())) return null
+  const requestTime = parseRequestTime(requestTimeStr)
+  if (!requestTime) return null
 
   const feedbackValue = col(row, 'feedbackValue', 'feedback_value') ?? null
   const rationale = col(row, 'rationale') ?? null
@@ -75,6 +88,9 @@ router.post('/csv', upload.single('file'), (req, res) => {
   const file = req.file
 
   void (async () => {
+    // Reload domain cache so isInternal is correct even if seed ran after startup
+    await loadDomains()
+
     const rawRows: CsvRow[] = []
 
     await new Promise<void>((resolve, reject) => {

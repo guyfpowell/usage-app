@@ -11,3 +11,8 @@ export function isInternalEmail(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase()
   return !!domain && cache.has(domain)
 }
+
+/** For unit tests only — sets the in-memory cache directly without a DB call */
+export function _setCache(domains: string[]): void {
+  cache = new Set(domains.map(d => d.toLowerCase()))
+}

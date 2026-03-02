@@ -5,22 +5,23 @@ An internal tool for ingesting, reviewing, classifying, and acting on Claude AI 
 ## What it does
 
 - Upload usage CSVs and stream them into Postgres via an upsert pipeline
-- Browse and filter records (internal vs external, feedback status, tool route, ISO week)
+- Browse and filter records (internal vs external, feedback status, tool route, date range)
 - Classify records and add group/ticket text inline
 - Bulk-create Jira issues from selected records with automatic key write-back
-- View weekly analytics: usage counts, avg TTFT, feedback breakdown by tool route
+- View weekly analytics: usage counts (including zero-usage weeks), avg TTFT, feedback breakdown by tool route
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js (App Router) |
+| Frontend | Next.js (App Router) + Tailwind CSS |
 | API | Node.js + Express |
 | Database | PostgreSQL 16 (Docker) |
 | ORM | Prisma |
 | CSV parsing | fast-csv |
 | Jira client | jira.js |
 | Package manager | pnpm (monorepo workspaces) |
+| Testing | Vitest + React Testing Library |
 
 ## Project Structure
 
@@ -86,6 +87,16 @@ JIRA_ISSUE_TYPE=Task
 | `GET` | `/analytics/weekly` | Weekly usage count + avg TTFT |
 | `GET` | `/analytics/overall` | Overall avg TTFT |
 | `GET` | `/analytics/feedback-by-route` | Feedback count grouped by tool route |
+
+## Running Tests
+
+```bash
+# API tests
+pnpm --filter api test
+
+# Web tests
+pnpm --filter web test
+```
 
 ## Implementation Plan
 
