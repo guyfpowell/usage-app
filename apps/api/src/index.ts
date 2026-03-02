@@ -4,6 +4,7 @@ import ingestRouter from './routes/ingest'
 import recordsRouter from './routes/records'
 import jiraRouter from './routes/jira'
 import analyticsRouter from './routes/analytics'
+import classificationsRouter from './routes/classifications'
 import { loadDomains } from './lib/domains'
 
 const app = express()
@@ -25,6 +26,7 @@ app.use('/ingest', ingestRouter)
 app.use('/records', recordsRouter)
 app.use('/jira', jiraRouter)
 app.use('/analytics', analyticsRouter)
+app.use('/classifications', classificationsRouter)
 
 const PORT = process.env.PORT ?? 3001
 
