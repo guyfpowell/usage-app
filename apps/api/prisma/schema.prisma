@@ -39,6 +39,7 @@ model UsageRecord {
 model UploadBatch {
   id            Int                 @id @default(autoincrement())
   filename      String
+  source        String              @default("csv") // 'csv' | 'databricks'
   insertedCount Int
   updatedCount  Int
   isRolledBack  Boolean             @default(false)

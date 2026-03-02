@@ -181,6 +181,7 @@ export function getFeedbackByRoute(feedbackValue?: string) {
 export interface UploadBatch {
   id: number
   filename: string
+  source: string
   insertedCount: number
   updatedCount: number
   isRolledBack: boolean
@@ -193,6 +194,12 @@ export function getBatches() {
 
 export function rollbackBatch(id: number) {
   return apiFetch<{ deleted: number; restored: number }>(`/batches/${id}/rollback`, {
+    method: 'POST',
+  })
+}
+
+export function syncDatabricks() {
+  return apiFetch<{ inserted: number; updated: number; batchId: number }>('/ingest/databricks', {
     method: 'POST',
   })
 }

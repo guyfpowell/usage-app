@@ -4,7 +4,8 @@ An internal tool for ingesting, reviewing, classifying, and acting on Claude AI 
 
 ## What it does
 
-- Upload usage CSVs and stream them into Postgres via an upsert pipeline; roll back any upload to undo inserts and restore previous state
+- Pull usage records directly from Azure Databricks with a "Get Latest" button (full sync on first run, incremental on subsequent runs); or upload a CSV manually
+- Roll back any ingest batch to undo inserts and restore updated records to their previous state
 - Browse and filter records (internal vs external, feedback status, Jira ticket status, tool route, user, date range)
 - Classify records, add notes, link to an existing Jira epic or customer-feedback issue inline
 - Bulk-create Jira bugs from selected records with automatic key write-back; classification set as a label
@@ -75,6 +76,9 @@ JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=CDO
 JIRA_CUSTOM_ENGINEERING_TEAM=customfield_10178
 JIRA_CUSTOM_SKILLSET=customfield_10333
+DATABRICKS_HOST=https://adb-<id>.<region>.azuredatabricks.net
+DATABRICKS_WAREHOUSE_ID=<warehouse-id>
+DATABRICKS_TOKEN=<personal-access-token>
 ```
 
 ## API Routes
@@ -82,6 +86,7 @@ JIRA_CUSTOM_SKILLSET=customfield_10333
 | Method | Route | Description |
 |---|---|---|
 | `POST` | `/ingest/csv` | Upload and parse a CSV of usage records |
+| `POST` | `/ingest/databricks` | Pull latest records from Databricks (full sync on first run, incremental thereafter) |
 | `GET` | `/records` | List records with filters |
 | `GET` | `/records/export` | Download filtered records as Excel |
 | `PATCH` | `/records/:id` | Update classification, groupText, epicKey, linkedIssueKey |

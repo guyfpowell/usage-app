@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { uploadCsv, getBatches, rollbackBatch } from '@/lib/api'
+import { uploadCsv, getBatches, rollbackBatch, syncDatabricks } from '@/lib/api'
 
 export default function UploadPage() {
   const qc = useQueryClient()
@@ -22,6 +22,20 @@ export default function UploadPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['batches'] })
       qc.invalidateQueries({ queryKey: ['records'] })
+    },
+  })
+
+  const databricksSync = useMutation({
+    mutationFn: syncDatabricks,
+    onSuccess: (data) => {
+      setResult(data)
+      setError(null)
+      qc.invalidateQueries({ queryKey: ['batches'] })
+      qc.invalidateQueries({ queryKey: ['records'] })
+    },
+    onError: (e: Error) => {
+      setError(e.message)
+      setResult(null)
     },
   })
 
@@ -45,14 +59,53 @@ export default function UploadPage() {
     }
   }
 
+  const isBusy = loading || databricksSync.isPending
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Upload CSV</h1>
-        <p className="text-sm text-gray-500">Import usage records from a CSV export</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Upload</h1>
+        <p className="text-sm text-gray-500">Import usage records from Databricks or a CSV file</p>
       </div>
 
+      {/* Databricks sync */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Get Latest from Databricks</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {batches?.some(b => b.source === 'databricks' && !b.isRolledBack)
+                ? 'Fetches records added since the last Databricks sync.'
+                : 'First run — fetches the full history from Databricks.'}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setResult(null)
+              setError(null)
+              databricksSync.mutate()
+            }}
+            disabled={isBusy}
+            className="shrink-0 inline-flex items-center gap-2 py-2.5 px-5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {databricksSync.isPending ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Syncing…
+              </>
+            ) : (
+              'Get Latest'
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* CSV upload */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Upload CSV</h2>
         <div
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
@@ -105,7 +158,7 @@ export default function UploadPage() {
             <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
-            <p className="font-semibold text-green-800">Upload complete</p>
+            <p className="font-semibold text-green-800">Sync complete</p>
           </div>
           <p className="text-green-700 text-sm pl-7">
             {result.inserted} inserted · {result.updated} updated
@@ -134,7 +187,8 @@ export default function UploadPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File / Sync</th>
                 <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
                 <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Inserted</th>
                 <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
@@ -144,6 +198,15 @@ export default function UploadPage() {
             <tbody className="divide-y divide-gray-100">
               {batches.map(batch => (
                 <tr key={batch.id} className={batch.isRolledBack ? 'opacity-50' : 'hover:bg-gray-50'}>
+                  <td className="px-5 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      batch.source === 'databricks'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {batch.source === 'databricks' ? 'Databricks' : 'CSV'}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-gray-700 font-mono text-xs max-w-[200px] truncate" title={batch.filename}>
                     {batch.filename}
                   </td>
