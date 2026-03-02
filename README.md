@@ -32,7 +32,6 @@ An internal tool for ingesting, reviewing, classifying, and acting on Claude AI 
 │   └── web/          # Next.js frontend
 ├── docker-compose.yml
 ├── pnpm-workspace.yaml
-├── plan.md           # Phased implementation plan
 └── README.md
 ```
 
@@ -72,8 +71,9 @@ DATABASE_URL=postgresql://app:app@localhost:5432/usage
 JIRA_HOST=your-domain.atlassian.net
 JIRA_EMAIL=your@email.com
 JIRA_API_TOKEN=your-api-token
-JIRA_PROJECT_KEY=PROJ
-JIRA_ISSUE_TYPE=Task
+JIRA_PROJECT_KEY=CDO
+JIRA_CUSTOM_ENGINEERING_TEAM=customfield_10178
+JIRA_CUSTOM_SKILLSET=customfield_10333
 ```
 
 ## API Routes
@@ -98,18 +98,3 @@ pnpm --filter api test
 pnpm --filter web test
 ```
 
-## Implementation Plan
-
-See [plan.md](plan.md) for the full phased implementation plan with Claude prompts for each phase.
-
-## Status
-
-| Phase | Status |
-|---|---|
-| Phase 0 — Bootstrap | ✅ Done |
-| Phase 1 — Data Layer | ✅ Done |
-| Phase 2 — API Core | ✅ Done |
-| Phase 3 — Jira Integration | ✅ Done |
-| Phase 4 — Analytics API | ✅ Done |
-| Phase 5 — Frontend | ✅ Done |
-| Phase 6 — Hardening | ⬜ Out of scope |

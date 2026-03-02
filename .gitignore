@@ -6,3 +6,5 @@ dist/
 *.tsbuildinfo
 .DS_Store
 example datasets/
+jira-plan.md
+plan.md
