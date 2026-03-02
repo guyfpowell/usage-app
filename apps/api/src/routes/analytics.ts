@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { Prisma } from '@prisma/client'
 import prisma from '../lib/prisma'
 
 const router = Router()
@@ -18,15 +19,23 @@ interface FeedbackByRouteRow {
   count: number
 }
 
-// GET /analytics/weekly — weekly usage count + avg ttftSeconds
+// GET /analytics/weekly?type=internal|external — weekly usage count + avg ttftSeconds
 router.get('/weekly', (req, res) => {
   void (async () => {
+    const { type } = req.query as { type?: string }
+
+    const typeFilter =
+      type === 'internal' ? Prisma.sql`WHERE "isInternal" = true` :
+      type === 'external' ? Prisma.sql`WHERE "isInternal" = false` :
+      Prisma.sql``
+
     const rows = await prisma.$queryRaw<WeeklyRow[]>`
       SELECT
         DATE_TRUNC('week', "requestTime") AS week,
         COUNT(*)::int                     AS count,
         AVG("ttftSeconds")                AS avg_ttft
       FROM "UsageRecord"
+      ${typeFilter}
       GROUP BY week
       ORDER BY week DESC
     `

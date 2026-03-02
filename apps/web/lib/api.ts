@@ -110,8 +110,9 @@ export function getClassifications() {
   return apiFetch<Classification[]>('/classifications')
 }
 
-export function getWeeklyAnalytics() {
-  return apiFetch<WeeklyRow[]>('/analytics/weekly')
+export function getWeeklyAnalytics(type?: 'internal' | 'external') {
+  const params = type ? `?type=${type}` : ''
+  return apiFetch<WeeklyRow[]>(`/analytics/weekly${params}`)
 }
 
 export function getOverallAnalytics() {

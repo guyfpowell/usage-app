@@ -1,12 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getWeeklyAnalytics, getOverallAnalytics, getFeedbackByRoute } from '@/lib/api'
 
+type WeeklyFilter = 'all' | 'internal' | 'external'
+
 export default function AnalyticsPage() {
+  const [weeklyFilter, setWeeklyFilter] = useState<WeeklyFilter>('all')
+
   const { data: weekly } = useQuery({
-    queryKey: ['analytics/weekly'],
-    queryFn: getWeeklyAnalytics,
+    queryKey: ['analytics/weekly', weeklyFilter],
+    queryFn: () => getWeeklyAnalytics(weeklyFilter === 'all' ? undefined : weeklyFilter),
   })
 
   const { data: overall } = useQuery({
@@ -38,7 +43,18 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Weekly usage table */}
         <div>
-          <h2 className="text-lg font-medium mb-3">Weekly Usage</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-medium">Weekly Usage</h2>
+            <select
+              value={weeklyFilter}
+              onChange={e => setWeeklyFilter(e.target.value as WeeklyFilter)}
+              className="border rounded px-2 py-1 text-sm bg-white"
+            >
+              <option value="all">All users</option>
+              <option value="internal">Internal only</option>
+              <option value="external">External only</option>
+            </select>
+          </div>
           <div className="overflow-x-auto rounded border bg-white">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 border-b">
