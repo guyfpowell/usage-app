@@ -19,6 +19,22 @@ async function main() {
        OR "userId" ILIKE '%@peimedia.com'
   `
   console.log(`✓ Backfilled isInternal=true on ${updated} existing records`)
+
+  // Classifications
+  const classifications = [
+    'AskPEI Bug',
+    'Roadmap item',
+    'New feature request',
+    'Data issue',
+    'Data expansion',
+    'To be classified',
+    'No Action',
+  ]
+  await prisma.classification.createMany({
+    data: classifications.map(name => ({ name, isActive: true })),
+    skipDuplicates: true,
+  })
+  console.log(`✓ Seeded ${classifications.length} classifications`)
 }
 
 main()
