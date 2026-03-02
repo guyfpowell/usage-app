@@ -25,6 +25,7 @@ model UsageRecord {
   ticketText      String?
   jiraIssueKey    String?
   jiraIssueUrl    String?
+  epicKey         String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

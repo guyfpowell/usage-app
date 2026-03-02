@@ -18,8 +18,14 @@ export interface UsageRecord {
   ticketText: string | null
   jiraIssueKey: string | null
   jiraIssueUrl: string | null
+  epicKey: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface JiraEpic {
+  key: string
+  summary: string
 }
 
 export interface RecordsResponse {
@@ -94,7 +100,7 @@ export function getRecords(filters: RecordFilters = {}) {
 
 export function patchRecord(
   id: number,
-  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText'>>
+  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey'>>
 ) {
   return apiFetch<UsageRecord>(`/records/${id}`, {
     method: 'PATCH',
@@ -124,6 +130,10 @@ export function getUsers() {
 
 export function getFeedbackValues() {
   return apiFetch<string[]>('/records/feedback-values')
+}
+
+export function getEpics() {
+  return apiFetch<JiraEpic[]>('/jira/epics')
 }
 
 export function getWeeklyAnalytics(type?: 'internal' | 'external') {

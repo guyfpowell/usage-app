@@ -73,7 +73,7 @@ router.patch('/:id', (req, res) => {
       return
     }
 
-    const { classification, groupText, ticketText } = req.body as Record<string, string | undefined>
+    const { classification, groupText, ticketText, epicKey } = req.body as Record<string, string | undefined>
 
     const record = await prisma.usageRecord.update({
       where: { id },
@@ -81,6 +81,7 @@ router.patch('/:id', (req, res) => {
         ...(classification !== undefined && { classification }),
         ...(groupText !== undefined && { groupText }),
         ...(ticketText !== undefined && { ticketText }),
+        ...(epicKey !== undefined && { epicKey }),
       },
     })
 

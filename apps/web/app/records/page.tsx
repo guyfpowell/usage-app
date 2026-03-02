@@ -17,6 +17,7 @@ import {
   getClassifications,
   getUsers,
   getFeedbackValues,
+  getEpics,
   type RecordFilters,
   type UsageRecord,
 } from '@/lib/api'
@@ -109,8 +110,13 @@ export default function RecordsPage() {
     queryFn: getFeedbackValues,
   })
 
+  const { data: epics } = useQuery({
+    queryKey: ['epics'],
+    queryFn: getEpics,
+  })
+
   const patch = useMutation({
-    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText'>> }) =>
+    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey'>> }) =>
       patchRecord(id, update),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['records'] }),
   })
@@ -217,6 +223,24 @@ export default function RecordsPage() {
           <option value="To be classified">To be classified</option>
           {classifications?.map(c => (
             <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      accessorKey: 'epicKey',
+      header: 'Epic',
+      cell: ({ row }) => (
+        <select
+          value={row.original.epicKey ?? ''}
+          onChange={e =>
+            patch.mutate({ id: row.original.id, update: { epicKey: e.target.value || null } })
+          }
+          className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 py-1 max-w-[200px]"
+        >
+          <option value="">— no epic —</option>
+          {epics?.map(e => (
+            <option key={e.key} value={e.key}>{e.key}: {e.summary}</option>
           ))}
         </select>
       ),

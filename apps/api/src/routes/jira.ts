@@ -73,6 +73,34 @@ function makeDescription(record: {
   }
 }
 
+router.get('/epics', (req, res) => {
+  void (async () => {
+    const { JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN } = process.env
+    if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_API_TOKEN) {
+      res.status(503).json({ error: 'Jira credentials not configured' })
+      return
+    }
+    const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')
+    const projectKey = process.env.JIRA_PROJECT_KEY ?? 'CDO'
+
+    const resp = await fetch(`https://${JIRA_HOST}/rest/api/3/search/jql`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jql: `project = ${projectKey} AND issuetype = Epic AND labels = askPEI AND statusCategory not in (Done) ORDER BY created DESC`,
+        fields: ['summary'],
+        maxResults: 100,
+      }),
+    })
+
+    const data = await resp.json() as { issues?: { key: string; fields: { summary: string } }[] }
+    res.json((data.issues ?? []).map(i => ({ key: i.key, summary: i.fields.summary })))
+  })().catch(err => {
+    console.error(err)
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to fetch epics' })
+  })
+})
+
 // Discovery endpoint — call GET /jira/fields once credentials are configured
 // to find the customfield IDs for Engineering Team and Skillset
 router.get('/fields', (req, res) => {
@@ -169,6 +197,9 @@ router.post('/create', (req, res) => {
       }
       if (skillsetField && skillsetField !== 'customfield_XXXXX') {
         fields[skillsetField] = [{ value: 'Data Science' }]
+      }
+      if (record.epicKey) {
+        fields['customfield_10014'] = record.epicKey
       }
 
       const issue = await client.issues.createIssue({ fields })
