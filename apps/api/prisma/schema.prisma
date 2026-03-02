@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UsageRecord {
+  id              Int       @id @default(autoincrement())
+  traceId         String?
+  userId          String
+  requestTime     DateTime
+  requestContent  String
+  responseContent String
+  feedbackValue   String?
+  rationale       String?
+  toolRoute       String
+  ttftSeconds     Float?
+  isInternal      Boolean
+  hasFeedback     Boolean
+  classification  String    @default("To be classified")
+  groupText       String?
+  ticketText      String?
+  jiraIssueKey    String?
+  jiraIssueUrl    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, requestTime])
+  @@index([toolRoute])
+  @@index([isInternal])
+  @@index([hasFeedback])
+}
+
+model InternalDomain {
+  id     Int    @id @default(autoincrement())
+  domain String @unique
+}
+
+model Classification {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  isActive Boolean @default(true)
+}

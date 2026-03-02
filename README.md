@@ -96,7 +96,7 @@ See [plan.md](plan.md) for the full phased implementation plan with Claude promp
 | Phase | Status |
 |---|---|
 | Phase 0 — Bootstrap | ✅ Done |
-| Phase 1 — Data Layer | ⬜ Pending |
+| Phase 1 — Data Layer | ✅ Done |
 | Phase 2 — API Core | ⬜ Pending |
 | Phase 3 — Jira Integration | ⬜ Pending |
 | Phase 4 — Analytics API | ⬜ Pending |
