@@ -34,6 +34,7 @@ export interface RecordFilters {
   hasFeedback?: boolean
   toolRoute?: string
   userId?: string
+  feedbackValue?: string
   week?: string
   dateFrom?: string  // YYYY-MM-DD
   dateTo?: string    // YYYY-MM-DD (inclusive)
@@ -82,6 +83,7 @@ export function getRecords(filters: RecordFilters = {}) {
   if (filters.hasFeedback !== undefined) params.set('hasFeedback', String(filters.hasFeedback))
   if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
   if (filters.userId) params.set('userId', filters.userId)
+  if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
   if (filters.week) params.set('week', filters.week)
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters.dateTo) params.set('dateTo', filters.dateTo)
@@ -118,6 +120,10 @@ export function getClassifications() {
 
 export function getUsers() {
   return apiFetch<string[]>('/records/users')
+}
+
+export function getFeedbackValues() {
+  return apiFetch<string[]>('/records/feedback-values')
 }
 
 export function getWeeklyAnalytics(type?: 'internal' | 'external') {

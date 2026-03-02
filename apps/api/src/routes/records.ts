@@ -11,6 +11,7 @@ router.get('/', (req, res) => {
       hasFeedback,
       toolRoute,
       userId,
+      feedbackValue,
       week,
       dateFrom,
       dateTo,
@@ -28,6 +29,7 @@ router.get('/', (req, res) => {
 
     if (toolRoute) where.toolRoute = toolRoute
     if (userId) where.userId = userId
+    if (feedbackValue) where.feedbackValue = feedbackValue
 
     if (week) {
       try {
@@ -123,6 +125,21 @@ router.get('/users', (req, res) => {
   })().catch(err => {
     console.error(err)
     res.status(500).json({ error: 'Failed to fetch users' })
+  })
+})
+
+router.get('/feedback-values', (req, res) => {
+  void (async () => {
+    const rows = await prisma.usageRecord.findMany({
+      select: { feedbackValue: true },
+      distinct: ['feedbackValue'],
+      where: { feedbackValue: { not: null } },
+      orderBy: { feedbackValue: 'asc' },
+    })
+    res.json(rows.map(r => r.feedbackValue as string))
+  })().catch(err => {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch feedback values' })
   })
 })
 

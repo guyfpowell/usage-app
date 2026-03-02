@@ -59,7 +59,8 @@ export function parseRow(row: CsvRow): ParsedRow | null {
   const requestTime = parseRequestTime(requestTimeStr)
   if (!requestTime) return null
 
-  const feedbackValue = col(row, 'feedbackValue', 'feedback_value') ?? null
+  const rawFeedback = col(row, 'feedbackValue', 'feedback_value')
+  const feedbackValue = rawFeedback ? rawFeedback.trim().replace(/^["']+|["']+$/g, '').trim() || null : null
   const rationale = col(row, 'rationale') ?? null
   const ttftRaw = col(row, 'ttftSeconds', 'ttft_seconds', 'ttft')
   const ttft = ttftRaw ? parseFloat(ttftRaw) : null

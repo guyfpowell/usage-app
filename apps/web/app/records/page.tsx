@@ -16,6 +16,7 @@ import {
   createJiraIssues,
   getClassifications,
   getUsers,
+  getFeedbackValues,
   type RecordFilters,
   type UsageRecord,
 } from '@/lib/api'
@@ -101,6 +102,11 @@ export default function RecordsPage() {
   const { data: users } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
+  })
+
+  const { data: feedbackValues } = useQuery({
+    queryKey: ['feedbackValues'],
+    queryFn: getFeedbackValues,
   })
 
   const patch = useMutation({
@@ -377,6 +383,17 @@ export default function RecordsPage() {
             <option value="">All users</option>
             {users?.map(u => (
               <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+
+          <select
+            value={filters.feedbackValue ?? ''}
+            onChange={e => setFilter('feedbackValue', e.target.value || undefined)}
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+          >
+            <option value="">All feedback values</option>
+            {feedbackValues?.map(v => (
+              <option key={v} value={v}>{v}</option>
             ))}
           </select>
 
