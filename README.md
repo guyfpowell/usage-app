@@ -99,6 +99,6 @@ See [plan.md](plan.md) for the full phased implementation plan with Claude promp
 | Phase 1 — Data Layer | ✅ Done |
 | Phase 2 — API Core | ✅ Done |
 | Phase 3 — Jira Integration | ✅ Done |
-| Phase 4 — Analytics API | ⬜ Pending |
+| Phase 4 — Analytics API | ✅ Done |
 | Phase 5 — Frontend | ⬜ Pending |
 | Phase 6 — Hardening | ⬜ Out of scope |
