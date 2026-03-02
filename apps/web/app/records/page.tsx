@@ -15,6 +15,7 @@ import {
   patchRecord,
   createJiraIssues,
   getClassifications,
+  getUsers,
   type RecordFilters,
   type UsageRecord,
 } from '@/lib/api'
@@ -95,6 +96,11 @@ export default function RecordsPage() {
   const { data: classifications } = useQuery({
     queryKey: ['classifications'],
     queryFn: getClassifications,
+  })
+
+  const { data: users } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
   })
 
   const patch = useMutation({
@@ -362,6 +368,17 @@ export default function RecordsPage() {
             onChange={e => setFilter('toolRoute', e.target.value || undefined)}
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2 w-40"
           />
+
+          <select
+            value={filters.userId ?? ''}
+            onChange={e => setFilter('userId', e.target.value || undefined)}
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2 max-w-xs"
+          >
+            <option value="">All users</option>
+            {users?.map(u => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
 
           {/* Date range filter */}
           <div className="flex items-center rounded-lg border border-gray-300 overflow-hidden text-sm">

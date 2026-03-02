@@ -10,6 +10,7 @@ router.get('/', (req, res) => {
       type,
       hasFeedback,
       toolRoute,
+      userId,
       week,
       dateFrom,
       dateTo,
@@ -26,6 +27,7 @@ router.get('/', (req, res) => {
     else if (hasFeedback === 'false') where.hasFeedback = false
 
     if (toolRoute) where.toolRoute = toolRoute
+    if (userId) where.userId = userId
 
     if (week) {
       try {
@@ -109,6 +111,20 @@ export function parseDateRange(
   }
   return range
 }
+
+router.get('/users', (req, res) => {
+  void (async () => {
+    const users = await prisma.usageRecord.findMany({
+      select: { userId: true },
+      distinct: ['userId'],
+      orderBy: { userId: 'asc' },
+    })
+    res.json(users.map(u => u.userId))
+  })().catch(err => {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch users' })
+  })
+})
 
 export function parseIsoWeek(week: string): { start: Date; end: Date } {
   const match = week.match(/^(\d{4})-W(\d{1,2})$/)

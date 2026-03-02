@@ -33,6 +33,7 @@ export interface RecordFilters {
   type?: 'internal' | 'external'
   hasFeedback?: boolean
   toolRoute?: string
+  userId?: string
   week?: string
   dateFrom?: string  // YYYY-MM-DD
   dateTo?: string    // YYYY-MM-DD (inclusive)
@@ -80,6 +81,7 @@ export function getRecords(filters: RecordFilters = {}) {
   if (filters.type) params.set('type', filters.type)
   if (filters.hasFeedback !== undefined) params.set('hasFeedback', String(filters.hasFeedback))
   if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
+  if (filters.userId) params.set('userId', filters.userId)
   if (filters.week) params.set('week', filters.week)
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters.dateTo) params.set('dateTo', filters.dateTo)
@@ -112,6 +114,10 @@ export function createJiraIssues(ids: number[]) {
 
 export function getClassifications() {
   return apiFetch<Classification[]>('/classifications')
+}
+
+export function getUsers() {
+  return apiFetch<string[]>('/records/users')
 }
 
 export function getWeeklyAnalytics(type?: 'internal' | 'external') {
