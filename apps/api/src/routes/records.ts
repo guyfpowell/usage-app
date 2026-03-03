@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { Prisma } from '@prisma/client'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import prisma from '../lib/prisma'
 
 const router = Router()
@@ -119,37 +119,78 @@ router.get('/export', (req, res) => {
       orderBy: { requestTime: 'desc' },
     })
 
-    const rows = records.map(r => ({
-      ID: r.id,
-      'Trace ID': r.traceId ?? '',
-      'User ID': r.userId,
-      'Request Time': new Date(r.requestTime).toISOString(),
-      'Tool Route': r.toolRoute,
-      Internal: r.isInternal ? 'Yes' : 'No',
-      'Has Feedback': r.hasFeedback ? 'Yes' : 'No',
-      'Feedback Value': r.feedbackValue ?? '',
-      Rationale: r.rationale ?? '',
-      Classification: r.classification,
-      Notes: r.groupText ?? '',
-      Ticket: r.ticketText ?? '',
-      Epic: r.epicKey && process.env.JIRA_HOST
-        ? `https://${process.env.JIRA_HOST}/browse/${r.epicKey}`
-        : r.epicKey ?? '',
-      'TTFT (s)': r.ttftSeconds ?? '',
-      'Request Content': r.requestContent,
-      'Response Content': r.responseContent,
-    }))
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Records')
 
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(rows)
-    XLSX.utils.book_append_sheet(wb, ws, 'Records')
+    // Column definitions: header, key, width, wrapText
+    const columns: { header: string; key: string; width: number; wrap?: boolean }[] = [
+      { header: 'ID',               key: 'id',               width: 8 },
+      { header: 'Trace ID',         key: 'traceId',          width: 22 },
+      { header: 'User ID',          key: 'userId',           width: 28 },
+      { header: 'Request Time',     key: 'requestTime',      width: 22 },
+      { header: 'Tool Route',       key: 'toolRoute',        width: 28 },
+      { header: 'Internal',         key: 'isInternal',       width: 10 },
+      { header: 'Has Feedback',     key: 'hasFeedback',      width: 14 },
+      { header: 'Feedback Value',   key: 'feedbackValue',    width: 16 },
+      { header: 'Rationale',        key: 'rationale',        width: 45, wrap: true },
+      { header: 'Classification',   key: 'classification',   width: 22 },
+      { header: 'Notes',            key: 'groupText',        width: 30, wrap: true },
+      { header: 'Ticket',           key: 'ticketText',       width: 18 },
+      { header: 'Epic',             key: 'epicKey',          width: 32 },
+      { header: 'TTFT (s)',         key: 'ttftSeconds',      width: 10 },
+      { header: 'Customer Response',key: 'customerResponse', width: 50, wrap: true },
+      { header: 'Request Content',  key: 'requestContent',   width: 60, wrap: true },
+      { header: 'Response Content', key: 'responseContent',  width: 60, wrap: true },
+    ]
 
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+    ws.columns = columns.map(c => ({ header: c.header, key: c.key, width: c.width }))
+
+    // Style header row: bold, light blue background, auto-filter
+    const headerRow = ws.getRow(1)
+    headerRow.font = { bold: true }
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }
+    headerRow.alignment = { vertical: 'middle', wrapText: false }
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } }
+
+    // Freeze the header row
+    ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2' }]
+
+    // Add data rows
+    for (const r of records) {
+      const row = ws.addRow({
+        id: r.id,
+        traceId: r.traceId ?? '',
+        userId: r.userId,
+        requestTime: new Date(r.requestTime).toISOString(),
+        toolRoute: r.toolRoute,
+        isInternal: r.isInternal ? 'Yes' : 'No',
+        hasFeedback: r.hasFeedback ? 'Yes' : 'No',
+        feedbackValue: r.feedbackValue ?? '',
+        rationale: r.rationale ?? '',
+        classification: r.classification,
+        groupText: r.groupText ?? '',
+        ticketText: r.ticketText ?? '',
+        epicKey: r.epicKey && process.env.JIRA_HOST
+          ? `https://${process.env.JIRA_HOST}/browse/${r.epicKey}`
+          : r.epicKey ?? '',
+        ttftSeconds: r.ttftSeconds ?? '',
+        customerResponse: r.customerResponse ?? '',
+        requestContent: r.requestContent,
+        responseContent: r.responseContent,
+      })
+      // Apply wrap text to designated columns
+      columns.forEach((c, i) => {
+        if (c.wrap) {
+          row.getCell(i + 1).alignment = { wrapText: true, vertical: 'top' }
+        }
+      })
+    }
+
     const date = new Date().toISOString().split('T')[0]
-
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     res.setHeader('Content-Disposition', `attachment; filename="records-${date}.xlsx"`)
-    res.send(buf)
+    await wb.xlsx.write(res)
+    res.end()
   })().catch(err => {
     console.error(err)
     res.status(500).json({ error: 'Export failed' })
