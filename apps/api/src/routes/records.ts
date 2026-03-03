@@ -155,6 +155,9 @@ router.get('/export', (req, res) => {
     // Freeze the header row
     ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2' }]
 
+    // Excel hard limit is 32,767 characters per cell
+    const cap = (s: string | null | undefined) => (s ?? '').slice(0, 32767)
+
     // Add data rows
     for (const r of records) {
       const row = ws.addRow({
@@ -166,17 +169,17 @@ router.get('/export', (req, res) => {
         isInternal: r.isInternal ? 'Yes' : 'No',
         hasFeedback: r.hasFeedback ? 'Yes' : 'No',
         feedbackValue: r.feedbackValue ?? '',
-        rationale: r.rationale ?? '',
+        rationale: cap(r.rationale),
         classification: r.classification,
-        groupText: r.groupText ?? '',
+        groupText: cap(r.groupText),
         ticketText: r.ticketText ?? '',
         epicKey: r.epicKey && process.env.JIRA_HOST
           ? `https://${process.env.JIRA_HOST}/browse/${r.epicKey}`
           : r.epicKey ?? '',
         ttftSeconds: r.ttftSeconds ?? '',
-        customerResponse: r.customerResponse ?? '',
-        requestContent: r.requestContent,
-        responseContent: r.responseContent,
+        customerResponse: cap(r.customerResponse),
+        requestContent: cap(r.requestContent),
+        responseContent: cap(r.responseContent),
       })
       // Apply wrap text to designated columns
       columns.forEach((c, i) => {
