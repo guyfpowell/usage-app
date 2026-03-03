@@ -26,8 +26,9 @@ model UsageRecord {
   jiraIssueKey    String?
   jiraIssueUrl    String?
   epicKey         String?
-  linkedIssueKey  String?
-  createdAt       DateTime  @default(now())
+  linkedIssueKey    String?
+  customerResponse  String?
+  createdAt         DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@unique([userId, requestTime])

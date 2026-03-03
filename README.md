@@ -8,6 +8,7 @@ An internal tool for ingesting, reviewing, classifying, and acting on Claude AI 
 - Roll back any ingest batch to undo inserts and restore updated records to their previous state
 - Browse and filter records (internal vs external, feedback status, Jira ticket status, tool route, user, date range)
 - Classify records, add notes, link to an existing Jira epic or customer-feedback issue inline
+- Add a free-text customer response to any record via an editable overlay card
 - Bulk-create Jira bugs from selected records with automatic key write-back; classification set as a label
 - Export filtered records to Excel
 - View weekly analytics: usage counts (including zero-usage weeks), avg TTFT, feedback breakdown by tool route (filterable by feedback value)
@@ -89,7 +90,7 @@ DATABRICKS_TOKEN=<personal-access-token>
 | `POST` | `/ingest/databricks` | Pull latest records from Databricks (full sync on first run, incremental thereafter) |
 | `GET` | `/records` | List records with filters |
 | `GET` | `/records/export` | Download filtered records as Excel |
-| `PATCH` | `/records/:id` | Update classification, groupText, epicKey, linkedIssueKey |
+| `PATCH` | `/records/:id` | Update classification, groupText, epicKey, linkedIssueKey, customerResponse |
 | `GET` | `/batches` | List upload batches |
 | `POST` | `/batches/:id/rollback` | Roll back an upload batch |
 | `GET` | `/jira/epics` | Active askPEI-labelled epics |

@@ -4,7 +4,7 @@ import { Sidebar } from './sidebar'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Ask PEI - Customer Usage',
+  title: 'Customer Usage',
   description: 'Claude AI usage review tool',
 }
 

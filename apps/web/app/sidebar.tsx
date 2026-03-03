@@ -46,7 +46,7 @@ export function Sidebar() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-white tracking-tight">Ask PEI - Customer Usage</span>
+          <span className="text-lg font-bold text-white tracking-tight">Customer Usage</span>
         </div>
 
         {/* Nav */}

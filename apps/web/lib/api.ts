@@ -20,6 +20,7 @@ export interface UsageRecord {
   jiraIssueUrl: string | null
   epicKey: string | null
   linkedIssueKey: string | null
+  customerResponse: string | null
   createdAt: string
   updatedAt: string
 }
@@ -110,7 +111,7 @@ export function getRecords(filters: RecordFilters = {}) {
 
 export function patchRecord(
   id: number,
-  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey'>>
+  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey' | 'customerResponse'>>
 ) {
   return apiFetch<UsageRecord>(`/records/${id}`, {
     method: 'PATCH',

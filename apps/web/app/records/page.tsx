@@ -24,8 +24,14 @@ import {
   type UsageRecord,
 } from '@/lib/api'
 
-// Full-screen markdown modal
-function ResponseModal({ title, content, onClose }: { title: string; content: string; onClose: () => void }) {
+// Full-screen markdown modal — pass onSave to enable edit mode
+function ResponseModal({ title, content, onClose, onSave }: {
+  title: string
+  content: string
+  onClose: () => void
+  onSave?: (text: string) => void
+}) {
+  const [draft, setDraft] = useState(content)
   const html = marked.parse(content) as string
 
   useEffect(() => {
@@ -54,12 +60,37 @@ function ResponseModal({ title, content, onClose }: { title: string; content: st
             ×
           </button>
         </div>
-        <div
-          className="flex-1 overflow-y-auto px-8 py-6 prose prose-sm max-w-none
-            prose-headings:font-semibold prose-a:text-blue-600 prose-a:no-underline
-            hover:prose-a:underline prose-strong:font-semibold"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        {onSave ? (
+          <>
+            <textarea
+              className="flex-1 px-8 py-6 text-sm text-gray-800 resize-none focus:outline-none"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              placeholder="Type your customer response here..."
+            />
+            <div className="flex justify-end gap-3 px-6 py-4 border-t shrink-0">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { onSave(draft); onClose() }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </>
+        ) : (
+          <div
+            className="flex-1 overflow-y-auto px-8 py-6 prose prose-sm max-w-none
+              prose-headings:font-semibold prose-a:text-blue-600 prose-a:no-underline
+              hover:prose-a:underline prose-strong:font-semibold"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        )}
       </div>
     </div>
   )
@@ -87,7 +118,7 @@ export default function RecordsPage() {
   const qc = useQueryClient()
   const [filters, setFilters] = useState<RecordFilters>({ page: 1, pageSize: 50 })
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  const [modal, setModal] = useState<{ title: string; content: string } | null>(null)
+  const [modal, setModal] = useState<{ title: string; content: string; onSave?: (text: string) => void } | null>(null)
   const [dateMode, setDateMode] = useState<DateMode>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -123,7 +154,7 @@ export default function RecordsPage() {
   })
 
   const patch = useMutation({
-    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey'>> }) =>
+    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey' | 'customerResponse'>> }) =>
       patchRecord(id, update),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['records'] }),
   })
@@ -304,6 +335,34 @@ export default function RecordsPage() {
             {text.length > preview.length && (
               <button onClick={() => setModal({ title: 'Response', content: text })} className="text-xs text-blue-600 hover:underline mt-1">Read more</button>
             )}
+          </div>
+        )
+      },
+    },
+    {
+      id: 'customerResponse',
+      header: 'Cust. Response',
+      cell: ({ row }) => {
+        const text = row.original.customerResponse ?? ''
+        const hasText = text.length > 0
+        return (
+          <div className="max-w-xs">
+            {hasText && (
+              <p
+                className="text-xs text-gray-600 whitespace-pre-wrap break-words"
+                style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties}
+              >{text}</p>
+            )}
+            <button
+              onClick={() => setModal({
+                title: 'Customer Response',
+                content: text,
+                onSave: (val) => patch.mutate({ id: row.original.id, update: { customerResponse: val } }),
+              })}
+              className="text-xs text-blue-600 hover:underline mt-1"
+            >
+              {hasText ? 'Edit' : 'Add response'}
+            </button>
           </div>
         )
       },
@@ -594,6 +653,7 @@ export default function RecordsPage() {
           title={modal.title}
           content={modal.content}
           onClose={() => setModal(null)}
+          onSave={modal.onSave}
         />
       )}
     </div>
