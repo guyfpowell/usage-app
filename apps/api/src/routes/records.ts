@@ -15,6 +15,7 @@ router.get('/', (req, res) => {
       userId,
       feedbackValue,
       classification,
+      notClassification,
       week,
       dateFrom,
       dateTo,
@@ -37,6 +38,7 @@ router.get('/', (req, res) => {
     if (userId) where.userId = userId
     if (feedbackValue) where.feedbackValue = feedbackValue
     if (classification) where.classification = classification
+    if (notClassification) where.classification = { not: notClassification }
 
     if (week) {
       try {
@@ -82,6 +84,7 @@ router.get('/export', (req, res) => {
       toolRoute,
       userId,
       feedbackValue,
+      notClassification,
       week,
       dateFrom,
       dateTo,
@@ -101,6 +104,7 @@ router.get('/export', (req, res) => {
     if (toolRoute) where.toolRoute = toolRoute
     if (userId) where.userId = userId
     if (feedbackValue) where.feedbackValue = feedbackValue
+    if (notClassification) where.classification = { not: notClassification }
 
     if (week) {
       try {

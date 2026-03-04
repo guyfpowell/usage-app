@@ -52,6 +52,7 @@ export interface RecordFilters {
   userId?: string
   feedbackValue?: string
   classification?: string
+  notClassification?: string
   week?: string
   dateFrom?: string  // YYYY-MM-DD
   dateTo?: string    // YYYY-MM-DD (inclusive)
@@ -103,6 +104,7 @@ export function getRecords(filters: RecordFilters = {}) {
   if (filters.userId) params.set('userId', filters.userId)
   if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
   if (filters.classification) params.set('classification', filters.classification)
+  if (filters.notClassification) params.set('notClassification', filters.notClassification)
   if (filters.week) params.set('week', filters.week)
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters.dateTo) params.set('dateTo', filters.dateTo)
@@ -145,6 +147,7 @@ export function getExportUrl(filters: RecordFilters = {}) {
   if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
   if (filters.userId) params.set('userId', filters.userId)
   if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
+  if (filters.notClassification) params.set('notClassification', filters.notClassification)
   if (filters.week) params.set('week', filters.week)
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters.dateTo) params.set('dateTo', filters.dateTo)

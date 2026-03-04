@@ -122,10 +122,13 @@ export default function RecordsPage() {
   const [dateMode, setDateMode] = useState<DateMode>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [hideNoAction, setHideNoAction] = useState(false)
+
+  const activeFilters = { ...filters, ...(hideNoAction ? { notClassification: 'No Action' } : {}) }
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['records', filters],
-    queryFn: () => getRecords(filters),
+    queryKey: ['records', activeFilters],
+    queryFn: () => getRecords(activeFilters),
   })
 
   const { data: classifications } = useQuery({
@@ -446,7 +449,7 @@ export default function RecordsPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={getExportUrl(filters)}
+            href={getExportUrl(activeFilters)}
             className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors"
           >
             Export Excel
@@ -553,6 +556,17 @@ export default function RecordsPage() {
               </button>
             ))}
           </div>
+
+          <button
+            onClick={() => setHideNoAction(h => !h)}
+            className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+              hideNoAction
+                ? 'bg-gray-800 text-white border-gray-800'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {hideNoAction ? 'Showing: No Action hidden' : 'Hide No Action'}
+          </button>
 
           {dateMode === 'custom' && (
             <>

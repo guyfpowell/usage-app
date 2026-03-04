@@ -15,10 +15,14 @@ function getClient(): Version3Client {
   })
 }
 
+function sanitize(text: string): string {
+  return text.replace(/[\r\n]+/g, ' ').trim()
+}
+
 function makeSummary(record: { rationale: string | null; userId: string }): string {
   const parts = ['User feedback']
-  if (record.rationale?.trim()) parts.push(record.rationale.trim())
-  parts.push(record.userId)
+  if (record.rationale?.trim()) parts.push(sanitize(record.rationale))
+  parts.push(sanitize(record.userId))
   const full = parts.join(' - ')
   return full.length > 255 ? full.slice(0, 252) + '...' : full
 }

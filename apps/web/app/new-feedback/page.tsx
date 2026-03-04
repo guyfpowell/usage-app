@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { marked } from 'marked'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getRecords, patchRecord, getClassifications, getEpics, getCustomerFeedbackIssues, type UsageRecord } from '@/lib/api'
+import { getRecords, patchRecord, getClassifications, getEpics, getCustomerFeedbackIssues, createJiraIssues, type UsageRecord } from '@/lib/api'
 
 type FeedbackTab = 'all' | 'internal' | 'external'
 
@@ -42,6 +42,8 @@ function RecordView({
   const [epicKey, setEpicKey] = useState(record.epicKey ?? '')
   const [linkedIssueKey, setLinkedIssueKey] = useState(record.linkedIssueKey ?? '')
   const [saved, setSaved] = useState(false)
+  const [jiraKey, setJiraKey] = useState(record.jiraIssueKey)
+  const [jiraUrl, setJiraUrl] = useState(record.jiraIssueUrl)
 
   const { data: classifications } = useQuery({
     queryKey: ['classifications'],
@@ -56,6 +58,18 @@ function RecordView({
   const { data: linkedIssues } = useQuery({
     queryKey: ['customer-feedback-issues'],
     queryFn: getCustomerFeedbackIssues,
+  })
+
+  const createJira = useMutation({
+    mutationFn: () => createJiraIssues([record.id]),
+    onSuccess: (data) => {
+      const issue = data.issues[0]
+      if (issue) {
+        setJiraKey(issue.jiraIssueKey)
+        setJiraUrl(issue.jiraIssueUrl)
+      }
+      qc.invalidateQueries({ queryKey: ['records'] })
+    },
   })
 
   const patch = useMutation({
@@ -204,6 +218,27 @@ function RecordView({
               className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
             />
           </div>
+          {jiraKey && jiraUrl ? (
+            <a
+              href={jiraUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-5 py-2 text-sm font-medium rounded-lg bg-green-700 hover:bg-green-600 text-white transition-colors shrink-0 flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              {jiraKey}
+            </a>
+          ) : (
+            <button
+              onClick={() => createJira.mutate()}
+              disabled={createJira.isPending}
+              className="px-5 py-2 text-sm font-medium rounded-lg bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 transition-colors shrink-0"
+            >
+              {createJira.isPending ? 'Creating…' : createJira.isError ? 'Retry Jira' : '+ Create Jira'}
+            </button>
+          )}
           <button
             onClick={() => patch.mutate()}
             disabled={patch.isPending}
