@@ -5,12 +5,16 @@ import { marked } from 'marked'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRecords, patchRecord, getClassifications, getEpics, getCustomerFeedbackIssues, type UsageRecord } from '@/lib/api'
 
-const NEW_FEEDBACK_FILTERS = {
-  type: 'external' as const,
-  hasFeedback: true,
-  feedbackValue: 'negative',
-  classification: 'To be classified',
-  pageSize: 200,
+type FeedbackTab = 'all' | 'internal' | 'external'
+
+export function buildFilters(tab: FeedbackTab) {
+  return {
+    ...(tab !== 'all' && { type: tab as 'internal' | 'external' }),
+    hasFeedback: true,
+    feedbackValue: 'negative',
+    classification: 'To be classified',
+    pageSize: 200,
+  }
 }
 
 // ── Single record full-page view ──────────────────────────────────────────────
@@ -219,23 +223,36 @@ function RecordView({
 
 // ── List view ─────────────────────────────────────────────────────────────────
 
+const TABS: { key: FeedbackTab; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'external', label: 'External' },
+  { key: 'internal', label: 'Internal' },
+]
+
 export default function NewFeedbackPage() {
+  const [tab, setTab] = useState<FeedbackTab>('external')
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const qc = useQueryClient()
 
+  const filters = buildFilters(tab)
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['records', NEW_FEEDBACK_FILTERS],
-    queryFn: () => getRecords(NEW_FEEDBACK_FILTERS),
+    queryKey: ['records', 'new-feedback', tab],
+    queryFn: () => getRecords(filters),
   })
 
   const records = data?.records ?? []
 
   function handleSaved() {
-    // Refetch and stay on same index (it'll be removed from list, so next record slides in)
-    qc.invalidateQueries({ queryKey: ['records', NEW_FEEDBACK_FILTERS] })
+    qc.invalidateQueries({ queryKey: ['records', 'new-feedback', tab] })
     if (selectedIndex !== null && selectedIndex >= records.length - 1) {
       setSelectedIndex(Math.max(0, records.length - 2))
     }
+  }
+
+  function handleTabChange(next: FeedbackTab) {
+    setTab(next)
+    setSelectedIndex(null)
   }
 
   // Single record view
@@ -264,9 +281,26 @@ export default function NewFeedbackPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">New Feedback</h1>
         <p className="text-sm text-gray-500 mt-1">
-          External records with feedback that need classifying.
+          Negative feedback records that need classifying.
           {!isLoading && <span className="font-medium text-gray-700"> {records.length} remaining.</span>}
         </p>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => handleTabChange(t.key)}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors -mb-px border-b-2 ${
+              tab === t.key
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
@@ -285,7 +319,7 @@ export default function NewFeedbackPage() {
             </svg>
           </div>
           <p className="text-gray-900 font-semibold text-lg">All caught up!</p>
-          <p className="text-gray-400 text-sm mt-1">No unclassified external feedback records.</p>
+          <p className="text-gray-400 text-sm mt-1">No unclassified feedback records in this view.</p>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">

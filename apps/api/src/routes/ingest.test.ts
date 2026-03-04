@@ -11,8 +11,8 @@ describe('parseRequestTime()', () => {
     expect(parseRequestTime('24/02/2026 16:33')).toEqual(new Date('2026-02-24T16:33'))
   })
 
-  it('parses DD/MM/YYYY HH:MM:SS', () => {
-    expect(parseRequestTime('24/02/2026 16:33:45')).toEqual(new Date('2026-02-24T16:33:45'))
+  it('parses DD/MM/YYYY HH:MM:SS (seconds truncated for dedup consistency)', () => {
+    expect(parseRequestTime('24/02/2026 16:33:45')).toEqual(new Date('2026-02-24T16:33:00'))
   })
 
   it('parses single-digit day and month', () => {
@@ -154,10 +154,10 @@ describe('parseRow()', () => {
     expect(result!.requestTime).toEqual(new Date('2026-02-24T16:33'))
   })
 
-  it('parses DD/MM/YYYY HH:MM:SS requestTime format', () => {
+  it('parses DD/MM/YYYY HH:MM:SS requestTime format (seconds truncated)', () => {
     const result = parseRow({ ...baseRow, requestTime: '24/02/2026 16:33:45' })
     expect(result).not.toBeNull()
-    expect(result!.requestTime).toEqual(new Date('2026-02-24T16:33:45'))
+    expect(result!.requestTime).toEqual(new Date('2026-02-24T16:33:00'))
   })
 
   it('deduplication: last row wins for same userId+requestTime key', () => {
