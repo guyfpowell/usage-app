@@ -51,6 +51,7 @@ export interface RecordFilters {
   toolRoute?: string
   userId?: string
   feedbackValue?: string
+  classification?: string
   week?: string
   dateFrom?: string  // YYYY-MM-DD
   dateTo?: string    // YYYY-MM-DD (inclusive)
@@ -101,12 +102,17 @@ export function getRecords(filters: RecordFilters = {}) {
   if (filters.toolRoute) params.set('toolRoute', filters.toolRoute)
   if (filters.userId) params.set('userId', filters.userId)
   if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
+  if (filters.classification) params.set('classification', filters.classification)
   if (filters.week) params.set('week', filters.week)
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters.dateTo) params.set('dateTo', filters.dateTo)
   if (filters.page) params.set('page', String(filters.page))
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize))
   return apiFetch<RecordsResponse>(`/records?${params}`)
+}
+
+export function getNewFeedbackCount() {
+  return apiFetch<{ count: number }>('/records/new-feedback-count')
 }
 
 export function patchRecord(
@@ -353,7 +359,7 @@ export const lab = {
   customerResponseGap: () => apiFetch<CustomerResponseGapData>('/analytics-lab/customer-response-gap'),
   repeatComplainants: () => apiFetch<RepeatComplainantRow[]>('/analytics-lab/repeat-complainants'),
   adoptionRatio: () => apiFetch<AdoptionRatioRow[]>('/analytics-lab/adoption-ratio'),
-  actionableFeedback: () => apiFetch<ActionableFeedbackData>('/analytics-lab/actionable-feedback'),
+  actionableFeedback: (type?: 'internal' | 'external') => apiFetch<ActionableFeedbackData>(`/analytics-lab/actionable-feedback${type ? `?type=${type}` : ''}`),
   routeInvestment: () => apiFetch<RouteInvestmentRow[]>('/analytics-lab/route-investment'),
   classificationThroughput: () => apiFetch<ClassificationThroughputRow[]>('/analytics-lab/classification-throughput'),
   dataQuality: () => apiFetch<DataQualityData>('/analytics-lab/data-quality'),

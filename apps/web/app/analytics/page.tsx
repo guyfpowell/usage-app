@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getWeeklyAnalytics, getOverallAnalytics, getFeedbackByRoute, getFeedbackValues } from '@/lib/api'
+import { getWeeklyAnalytics, getOverallAnalytics, getFeedbackByRoute, getFeedbackValues, lab } from '@/lib/api'
 
 type WeeklyFilter = 'all' | 'internal' | 'external'
 
 export default function AnalyticsPage() {
   const [weeklyFilter, setWeeklyFilter] = useState<WeeklyFilter>('all')
   const [feedbackFilter, setFeedbackFilter] = useState<string>('')
+  const [actionableFilter, setActionableFilter] = useState<WeeklyFilter>('all')
 
   const { data: weekly } = useQuery({
     queryKey: ['analytics/weekly', weeklyFilter],
@@ -28,6 +29,11 @@ export default function AnalyticsPage() {
   const { data: byRoute } = useQuery({
     queryKey: ['analytics/feedback-by-route', feedbackFilter],
     queryFn: () => getFeedbackByRoute(feedbackFilter || undefined),
+  })
+
+  const { data: actionable } = useQuery({
+    queryKey: ['lab/actionable-feedback', actionableFilter],
+    queryFn: () => lab.actionableFeedback(actionableFilter === 'all' ? undefined : actionableFilter),
   })
 
   return (
@@ -154,6 +160,57 @@ export default function AnalyticsPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Actionable Feedback Rate */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Actionable Feedback Rate</h2>
+            <p className="text-xs text-gray-500 mt-0.5">What percentage of feedback is generating real work?</p>
+          </div>
+          <select
+            value={actionableFilter}
+            onChange={e => setActionableFilter(e.target.value as WeeklyFilter)}
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-1.5"
+          >
+            <option value="all">All users</option>
+            <option value="internal">Internal only</option>
+            <option value="external">External only</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Week</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Records with feedback</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jira raised</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Conversion %</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {actionable?.weeks.length ? (
+                actionable.weeks.map((row, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-5 py-3 text-gray-900">
+                      {new Date(row.week).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="px-5 py-3 text-right text-gray-900">{row.feedbackCount}</td>
+                    <td className="px-5 py-3 text-right text-gray-900">{row.jiraCount}</td>
+                    <td className="px-5 py-3 text-right text-gray-900">
+                      {row.jiraRate != null ? `${row.jiraRate.toFixed(1)}%` : 'n/a'}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-5 py-8 text-center text-gray-400">No data</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

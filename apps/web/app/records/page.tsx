@@ -307,15 +307,24 @@ export default function RecordsPage() {
       cell: ({ row }) => {
         const text = row.original.requestContent
         const preview = text.split('\n').slice(0, 8).join('\n')
+        const traceId = row.original.traceId
+        const traceUrl = traceId
+          ? `https://adb-81631168259822.2.azuredatabricks.net/ml/experiments/1719330147765432/traces?o=81631168259822&selectedEvaluationId=${traceId}`
+          : null
         return (
           <div className="max-w-xs">
             <p
               className="text-xs text-gray-600 whitespace-pre-wrap break-words"
               style={{ display: '-webkit-box', WebkitLineClamp: 8, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties}
             >{preview}</p>
-            {text.length > preview.length && (
-              <button onClick={() => setModal({ title: 'Request', content: text })} className="text-xs text-blue-600 hover:underline mt-1">Read more</button>
-            )}
+            <div className="flex items-center gap-2 mt-1">
+              {text.length > preview.length && (
+                <button onClick={() => setModal({ title: 'Request', content: text })} className="text-xs text-blue-600 hover:underline">Read more</button>
+              )}
+              {traceUrl && (
+                <a href={traceUrl} target="_blank" rel="noreferrer" className="text-xs text-violet-600 hover:underline">View trace →</a>
+              )}
+            </div>
           </div>
         )
       },
