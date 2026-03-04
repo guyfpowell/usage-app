@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
+import { getNewFeedbackCount } from '@/lib/api'
 
 const navItems = [
   {
@@ -10,6 +12,16 @@ const navItems = [
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+      </svg>
+    ),
+  },
+  {
+    href: '/new-feedback',
+    label: 'New Feedback',
+    countKey: true,
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h6m-8 8l4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
       </svg>
     ),
   },
@@ -46,6 +58,13 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname()
 
+  const { data: countData } = useQuery({
+    queryKey: ['new-feedback-count'],
+    queryFn: getNewFeedbackCount,
+    refetchInterval: 60_000,
+  })
+  const newFeedbackCount = countData?.count ?? 0
+
   return (
     <aside className="fixed top-0 left-0 z-40 w-64 h-screen" aria-label="Sidebar">
       <div className="flex flex-col h-full px-3 py-5 overflow-y-auto bg-gray-900">
@@ -75,6 +94,11 @@ export function Sidebar() {
                 >
                   {item.icon}
                   <span className="flex-1">{item.label}</span>
+                  {'countKey' in item && newFeedbackCount > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-500 text-white font-bold leading-none min-w-[20px] text-center">
+                      {newFeedbackCount > 99 ? '99+' : newFeedbackCount}
+                    </span>
+                  )}
                   {'badge' in item && item.badge && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500 text-white font-medium leading-none">
                       {item.badge}

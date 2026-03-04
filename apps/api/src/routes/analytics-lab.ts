@@ -270,31 +270,36 @@ router.get('/adoption-ratio', (req, res) => {
 // --- HoD Module 9: Actionable Feedback Rate ---
 router.get('/actionable-feedback', (req, res) => {
   void (async () => {
-    const rows = await prisma.$queryRaw<{
-      week: Date
-      feedback_count: number
-      jira_count: number
-      jira_rate: string | null
-    }[]>`
-      SELECT
-        DATE_TRUNC('week', "requestTime") AS week,
-        COUNT(*) FILTER (WHERE "hasFeedback" = true)::int AS feedback_count,
-        COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS jira_count,
-        ROUND(
-          100.0 * COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)
-            / NULLIF(COUNT(*) FILTER (WHERE "hasFeedback" = true), 0),
-          1
-        ) AS jira_rate
-      FROM "UsageRecord"
-      GROUP BY week
-      ORDER BY week DESC
-    `
-    const [overall] = await prisma.$queryRaw<{ total_jira: number; total_resolved: number }[]>`
-      SELECT
-        COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS total_jira,
-        COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS total_resolved
-      FROM "UsageRecord"
-    `
+    const type = req.query.type as string | undefined
+    const whereClause = type === 'internal'
+      ? prisma.$queryRaw<{ week: Date; feedback_count: number; jira_count: number; jira_rate: string | null }[]>`
+          SELECT DATE_TRUNC('week', "requestTime") AS week,
+            COUNT(*) FILTER (WHERE "hasFeedback" = true)::int AS feedback_count,
+            COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS jira_count,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL) / NULLIF(COUNT(*) FILTER (WHERE "hasFeedback" = true), 0), 1) AS jira_rate
+          FROM "UsageRecord" WHERE "isInternal" = true GROUP BY week ORDER BY week DESC`
+      : type === 'external'
+      ? prisma.$queryRaw<{ week: Date; feedback_count: number; jira_count: number; jira_rate: string | null }[]>`
+          SELECT DATE_TRUNC('week', "requestTime") AS week,
+            COUNT(*) FILTER (WHERE "hasFeedback" = true)::int AS feedback_count,
+            COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS jira_count,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL) / NULLIF(COUNT(*) FILTER (WHERE "hasFeedback" = true), 0), 1) AS jira_rate
+          FROM "UsageRecord" WHERE "isInternal" = false GROUP BY week ORDER BY week DESC`
+      : prisma.$queryRaw<{ week: Date; feedback_count: number; jira_count: number; jira_rate: string | null }[]>`
+          SELECT DATE_TRUNC('week', "requestTime") AS week,
+            COUNT(*) FILTER (WHERE "hasFeedback" = true)::int AS feedback_count,
+            COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS jira_count,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL) / NULLIF(COUNT(*) FILTER (WHERE "hasFeedback" = true), 0), 1) AS jira_rate
+          FROM "UsageRecord" GROUP BY week ORDER BY week DESC`
+
+    const overallQuery = type === 'internal'
+      ? prisma.$queryRaw<{ total_jira: number }[]>`SELECT COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS total_jira FROM "UsageRecord" WHERE "isInternal" = true`
+      : type === 'external'
+      ? prisma.$queryRaw<{ total_jira: number }[]>`SELECT COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS total_jira FROM "UsageRecord" WHERE "isInternal" = false`
+      : prisma.$queryRaw<{ total_jira: number }[]>`SELECT COUNT(*) FILTER (WHERE "jiraIssueKey" IS NOT NULL)::int AS total_jira FROM "UsageRecord"`
+
+    const [rows, overallRows] = await Promise.all([whereClause, overallQuery])
+    const overall = overallRows[0]
     res.json({
       weeks: rows.map(r => ({
         week: r.week,

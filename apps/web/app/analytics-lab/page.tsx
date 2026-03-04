@@ -445,56 +445,6 @@ function AdoptionRatio() {
   )
 }
 
-// ── Module 9: Actionable Feedback Rate ───────────────────────────────────────
-
-function ActionableFeedback() {
-  const { data, isLoading } = useQuery({ queryKey: ['lab/actionable-feedback'], queryFn: lab.actionableFeedback })
-  const chartData = (data?.weeks ?? []).slice().reverse().map(r => ({
-    week: fmtWeek(r.week),
-    'Jira conversion %': r.jiraRate ?? 0,
-  }))
-  return (
-    <Card title="9. Actionable Feedback Rate" subtitle="What percentage of feedback is generating real work?">
-      <div className="p-5 space-y-4">
-        <StatBadge label="Total Jira issues raised from feedback" value={isLoading ? '…' : String(data?.totalJira ?? 0)} />
-        {!isLoading && chartData.length > 0 && (
-          <ResponsiveContainer width="100%" height={256}>
-            <ReBarChart data={chartData} barCategoryGap="35%">
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={60} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${v}%`} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Jira conversion']} />
-              <Bar dataKey="Jira conversion %" fill="#10b981" radius={[3, 3, 0, 0]} />
-            </ReBarChart>
-          </ResponsiveContainer>
-        )}
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <Th>Week</Th>
-                <Th right>Records with feedback</Th>
-                <Th right>Jira raised</Th>
-                <Th right>Conversion %</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? <EmptyRow cols={4} /> : data?.weeks.length ? data.weeks.map((r, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <Td>{fmtWeek(r.week)}</Td>
-                  <Td right>{r.feedbackCount}</Td>
-                  <Td right>{r.jiraCount}</Td>
-                  <Td right>{pct(r.jiraRate)}</Td>
-                </tr>
-              )) : <EmptyRow cols={4} />}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </Card>
-  )
-}
-
 // ── Module 10: Route Investment ───────────────────────────────────────────────
 
 function RouteInvestment() {
@@ -936,10 +886,7 @@ export default function AnalyticsLabPage() {
         />
         <div className="space-y-6">
           <AdoptionRatio />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <WeeklyActiveUsers />
-            <ActionableFeedback />
-          </div>
+          <WeeklyActiveUsers />
           <RouteInvestment />
           <ClassificationThroughput />
           <DataQuality />

@@ -14,6 +14,7 @@ router.get('/', (req, res) => {
       toolRoute,
       userId,
       feedbackValue,
+      classification,
       week,
       dateFrom,
       dateTo,
@@ -35,6 +36,7 @@ router.get('/', (req, res) => {
     if (toolRoute) where.toolRoute = toolRoute
     if (userId) where.userId = userId
     if (feedbackValue) where.feedbackValue = feedbackValue
+    if (classification) where.classification = classification
 
     if (week) {
       try {
@@ -251,6 +253,19 @@ export function parseDateRange(
   }
   return range
 }
+
+// GET /records/new-feedback-count — count of unclassified external feedback records
+router.get('/new-feedback-count', (req, res) => {
+  void (async () => {
+    const count = await prisma.usageRecord.count({
+      where: { isInternal: false, hasFeedback: true, feedbackValue: 'negative', classification: 'To be classified' },
+    })
+    res.json({ count })
+  })().catch(err => {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to count' })
+  })
+})
 
 router.get('/users', (req, res) => {
   void (async () => {
