@@ -31,6 +31,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: '/analytics-lab',
+    label: 'Analytics Lab',
+    badge: 'test',
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3v6.5L6.5 15A4 4 0 0010.5 21h3a4 4 0 004-4.5L15 9.5V3M9 3h6M9 3H7m8 0h2" />
+      </svg>
+    ),
+  },
 ]
 
 export function Sidebar() {
@@ -64,7 +74,12 @@ export function Sidebar() {
                   }`}
                 >
                   {item.icon}
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {'badge' in item && item.badge && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500 text-white font-medium leading-none">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               </li>
             )

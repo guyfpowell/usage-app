@@ -204,3 +204,164 @@ export function syncDatabricks() {
     method: 'POST',
   })
 }
+
+// ── Analytics Lab ─────────────────────────────────────────────────────────────
+
+export interface FeedbackFunnelRow {
+  toolRoute: string
+  totalRequests: number
+  feedbackCount: number
+  classifiedCount: number
+  jiraCount: number
+  feedbackRate: number | null
+  jiraOfFeedbackRate: number | null
+}
+
+export interface ClassificationMixRow {
+  week: string
+  classification: string
+  count: number
+}
+
+export interface BacklogAgeData {
+  buckets: { ageBucket: string; count: number }[]
+  oldest: { id: number; userId: string; requestTime: string; hasFeedback: boolean }[]
+}
+
+export interface PowerUserRow {
+  userId: string
+  totalRequests: number
+  feedbackCount: number
+  feedbackRate: number
+  jiraCount: number
+  noActionCount: number
+}
+
+export interface LatencyByRouteRow {
+  toolRoute: string
+  requestCount: number
+  p50Ttft: number | null
+  p95Ttft: number | null
+  avgTtft: number | null
+  feedbackRate: number
+}
+
+export interface CustomerResponseGapData {
+  totalWithFeedback: number
+  withResponse: number
+  unresponded: { id: number; userId: string; requestTime: string; feedbackValue: string | null; toolRoute: string }[]
+}
+
+export interface RepeatComplainantRow {
+  userId: string
+  toolRoute: string
+  weeksWithFeedback: number
+  totalFeedback: number
+}
+
+export interface AdoptionRatioRow {
+  week: string
+  internalRequests: number
+  externalRequests: number
+  internalUsers: number
+  externalUsers: number
+}
+
+export interface ActionableFeedbackData {
+  weeks: { week: string; feedbackCount: number; jiraCount: number; jiraRate: number | null }[]
+  totalJira: number
+}
+
+export interface RouteInvestmentRow {
+  toolRoute: string
+  requestCount: number
+  distinctUsers: number
+  feedbackCount: number
+  feedbackRate: number
+}
+
+export interface ClassificationThroughputRow {
+  week: string
+  ingested: number
+  stillUnclassified: number
+  classifiedThisWeek: number
+}
+
+export interface DataQualityData {
+  total: number
+  longRequest: number
+  longResponse: number
+  noTraceId: number
+  noTtft: number
+  noFeedbackValueButHasFeedback: number
+}
+
+export interface NetSatisfactionRow {
+  week: string
+  breakdown: Record<string, number>
+  total: number
+}
+
+export interface RetentionCohortRow {
+  cohortWeek: string
+  cohortSize: number
+  retained4w: number
+  retained8w: number
+}
+
+export interface JiraDeliveredData {
+  byClassification: { classification: string; count: number }[]
+  totalWithJira: number
+  totalRecords: number
+}
+
+export interface FeatureClusterRow {
+  toolRoute: string
+  epicKey: string | null
+  count: number
+  distinctUsers: number
+}
+
+export interface SpeedOfResponseData {
+  recordsWithJira: number
+  avgDaysToIngestion: number | null
+  p50Days: number | null
+  p90Days: number | null
+  note: string
+}
+
+export interface TtftScaleRow {
+  week: string
+  requestCount: number
+  p50Ttft: number | null
+  p95Ttft: number | null
+}
+
+export interface IcebergRow {
+  week: string
+  totalRequests: number
+  feedbackCount: number
+  feedbackRate: number | null
+}
+
+export const lab = {
+  feedbackFunnel: () => apiFetch<FeedbackFunnelRow[]>('/analytics-lab/feedback-funnel'),
+  classificationMix: () => apiFetch<ClassificationMixRow[]>('/analytics-lab/classification-mix'),
+  backlogAge: () => apiFetch<BacklogAgeData>('/analytics-lab/backlog-age'),
+  powerUsers: () => apiFetch<PowerUserRow[]>('/analytics-lab/power-users'),
+  latencyByRoute: () => apiFetch<LatencyByRouteRow[]>('/analytics-lab/latency-by-route'),
+  customerResponseGap: () => apiFetch<CustomerResponseGapData>('/analytics-lab/customer-response-gap'),
+  repeatComplainants: () => apiFetch<RepeatComplainantRow[]>('/analytics-lab/repeat-complainants'),
+  adoptionRatio: () => apiFetch<AdoptionRatioRow[]>('/analytics-lab/adoption-ratio'),
+  actionableFeedback: () => apiFetch<ActionableFeedbackData>('/analytics-lab/actionable-feedback'),
+  routeInvestment: () => apiFetch<RouteInvestmentRow[]>('/analytics-lab/route-investment'),
+  classificationThroughput: () => apiFetch<ClassificationThroughputRow[]>('/analytics-lab/classification-throughput'),
+  dataQuality: () => apiFetch<DataQualityData>('/analytics-lab/data-quality'),
+  netSatisfaction: () => apiFetch<NetSatisfactionRow[]>('/analytics-lab/net-satisfaction'),
+  retentionCohorts: () => apiFetch<RetentionCohortRow[]>('/analytics-lab/retention-cohorts'),
+  jiraDelivered: () => apiFetch<JiraDeliveredData>('/analytics-lab/jira-delivered'),
+  featureClusters: () => apiFetch<FeatureClusterRow[]>('/analytics-lab/feature-clusters'),
+  speedOfResponse: () => apiFetch<SpeedOfResponseData>('/analytics-lab/speed-of-response'),
+  ttftScale: () => apiFetch<TtftScaleRow[]>('/analytics-lab/ttft-scale'),
+  iceberg: () => apiFetch<IcebergRow[]>('/analytics-lab/iceberg'),
+}

@@ -4,6 +4,7 @@ import ingestRouter from './routes/ingest'
 import recordsRouter from './routes/records'
 import jiraRouter from './routes/jira'
 import analyticsRouter from './routes/analytics'
+import analyticsLabRouter from './routes/analytics-lab'
 import classificationsRouter from './routes/classifications'
 import batchesRouter from './routes/batches'
 import databricksRouter from './routes/databricks'
@@ -28,6 +29,7 @@ app.use('/ingest', ingestRouter)
 app.use('/records', recordsRouter)
 app.use('/jira', jiraRouter)
 app.use('/analytics', analyticsRouter)
+app.use('/analytics-lab', analyticsLabRouter)
 app.use('/classifications', classificationsRouter)
 app.use('/batches', batchesRouter)
 app.use('/ingest/databricks', databricksRouter)
