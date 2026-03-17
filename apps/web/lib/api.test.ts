@@ -124,6 +124,18 @@ describe('getRecords()', () => {
     expect(calledUrl(spy)).not.toContain('dateTo')
   })
 
+  it('sends classification2 param', async () => {
+    const spy = mockFetch({ total: 0, page: 1, pageSize: 50, records: [] })
+    await getRecords({ classification2: 'AskPEI Bug' })
+    expect(calledUrl(spy)).toContain('classification2=AskPEI+Bug')
+  })
+
+  it('omits classification2 when not provided', async () => {
+    const spy = mockFetch({ total: 0, page: 1, pageSize: 50, records: [] })
+    await getRecords({})
+    expect(calledUrl(spy)).not.toContain('classification2')
+  })
+
   it('sends all filters together', async () => {
     const spy = mockFetch({ total: 0, page: 1, pageSize: 50, records: [] })
     await getRecords({ type: 'internal', hasFeedback: true, toolRoute: '/ask', dateFrom: '2024-01-01', page: 1, pageSize: 50 })
@@ -150,6 +162,24 @@ describe('patchRecord()', () => {
     expect(calledUrl(spy)).toBe('http://localhost:3001/records/1')
     expect(calledInit(spy).method).toBe('PATCH')
     expect(JSON.parse(calledInit(spy).body as string)).toEqual({ classification: 'Bug' })
+  })
+
+  it('sends classification2 in the body', async () => {
+    const spy = mockFetch({ id: 1 })
+    await patchRecord(1, { classification2: 'Data issue' })
+    expect(JSON.parse(calledInit(spy).body as string)).toEqual({ classification2: 'Data issue' })
+  })
+
+  it('sends classification2: null to clear it', async () => {
+    const spy = mockFetch({ id: 1 })
+    await patchRecord(1, { classification2: null })
+    expect(JSON.parse(calledInit(spy).body as string)).toEqual({ classification2: null })
+  })
+
+  it('sends both classification and classification2 together', async () => {
+    const spy = mockFetch({ id: 1 })
+    await patchRecord(1, { classification: 'Roadmap item', classification2: 'AskPEI Bug' })
+    expect(JSON.parse(calledInit(spy).body as string)).toEqual({ classification: 'Roadmap item', classification2: 'AskPEI Bug' })
   })
 
   it('throws on non-ok response', async () => {

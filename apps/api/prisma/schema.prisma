@@ -21,6 +21,7 @@ model UsageRecord {
   isInternal      Boolean
   hasFeedback     Boolean
   classification  String    @default("To be classified")
+  classification2 String?
   groupText       String?
   ticketText      String?
   jiraIssueKey    String?

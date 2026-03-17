@@ -38,6 +38,7 @@ function RecordView({
 }) {
   const qc = useQueryClient()
   const [classification, setClassification] = useState(record.classification)
+  const [classification2, setClassification2] = useState(record.classification2 ?? '')
   const [notes, setNotes] = useState(record.groupText ?? '')
   const [epicKey, setEpicKey] = useState(record.epicKey ?? '')
   const [linkedIssueKey, setLinkedIssueKey] = useState(record.linkedIssueKey ?? '')
@@ -73,7 +74,7 @@ function RecordView({
   })
 
   const patch = useMutation({
-    mutationFn: () => patchRecord(record.id, { classification, groupText: notes, epicKey: epicKey || undefined, linkedIssueKey: linkedIssueKey || undefined }),
+    mutationFn: () => patchRecord(record.id, { classification, classification2: classification2 || null, groupText: notes, epicKey: epicKey || undefined, linkedIssueKey: linkedIssueKey || undefined }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['records'] })
       qc.invalidateQueries({ queryKey: ['new-feedback-count'] })
@@ -204,6 +205,19 @@ function RecordView({
               className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2 min-w-[220px]"
             >
               <option value="To be classified">To be classified</option>
+              {classifications?.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Classification 2</label>
+            <select
+              value={classification2}
+              onChange={e => setClassification2(e.target.value)}
+              className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-3 py-2 min-w-[220px]"
+            >
+              <option value="">— none —</option>
               {classifications?.map(c => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}

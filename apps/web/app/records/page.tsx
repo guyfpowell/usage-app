@@ -157,7 +157,7 @@ export default function RecordsPage() {
   })
 
   const patch = useMutation({
-    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey' | 'customerResponse'>> }) =>
+    mutationFn: ({ id, update }: { id: number; update: Partial<Pick<UsageRecord, 'classification' | 'classification2' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey' | 'customerResponse'>> }) =>
       patchRecord(id, update),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['records'] }),
   })
@@ -262,6 +262,24 @@ export default function RecordsPage() {
           className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 py-1"
         >
           <option value="To be classified">To be classified</option>
+          {classifications?.map(c => (
+            <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      accessorKey: 'classification2',
+      header: 'Classification 2',
+      cell: ({ row }) => (
+        <select
+          value={row.original.classification2 ?? ''}
+          onChange={e =>
+            patch.mutate({ id: row.original.id, update: { classification2: e.target.value || null } })
+          }
+          className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 py-1"
+        >
+          <option value="">— none —</option>
           {classifications?.map(c => (
             <option key={c.id} value={c.name}>{c.name}</option>
           ))}

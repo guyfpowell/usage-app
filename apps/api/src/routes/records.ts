@@ -16,6 +16,7 @@ router.get('/', (req, res) => {
       feedbackValue,
       classification,
       notClassification,
+      classification2,
       week,
       dateFrom,
       dateTo,
@@ -39,6 +40,7 @@ router.get('/', (req, res) => {
     if (feedbackValue) where.feedbackValue = feedbackValue
     if (classification) where.classification = classification
     if (notClassification) where.classification = { not: notClassification }
+    if (classification2) where.classification2 = classification2
 
     if (week) {
       try {
@@ -140,6 +142,7 @@ router.get('/export', (req, res) => {
       { header: 'Feedback Value',   key: 'feedbackValue',    width: 16 },
       { header: 'Rationale',        key: 'rationale',        width: 45, wrap: true },
       { header: 'Classification',   key: 'classification',   width: 22 },
+      { header: 'Classification 2', key: 'classification2',  width: 22 },
       { header: 'Notes',            key: 'groupText',        width: 30, wrap: true },
       { header: 'Ticket',           key: 'ticketText',       width: 18 },
       { header: 'Epic',             key: 'epicKey',          width: 32 },
@@ -177,6 +180,7 @@ router.get('/export', (req, res) => {
         feedbackValue: r.feedbackValue ?? '',
         rationale: cap(r.rationale),
         classification: r.classification,
+        classification2: r.classification2 ?? '',
         groupText: cap(r.groupText),
         ticketText: r.ticketText ?? '',
         epicKey: r.epicKey && process.env.JIRA_HOST
@@ -214,12 +218,13 @@ router.patch('/:id', (req, res) => {
       return
     }
 
-    const { classification, groupText, ticketText, epicKey, linkedIssueKey, customerResponse } = req.body as Record<string, string | undefined>
+    const { classification, classification2, groupText, ticketText, epicKey, linkedIssueKey, customerResponse } = req.body as Record<string, string | undefined | null>
 
     const record = await prisma.usageRecord.update({
       where: { id },
       data: {
         ...(classification !== undefined && { classification }),
+        ...(classification2 !== undefined && { classification2: classification2 ?? null }),
         ...(groupText !== undefined && { groupText }),
         ...(ticketText !== undefined && { ticketText }),
         ...(epicKey !== undefined && { epicKey }),

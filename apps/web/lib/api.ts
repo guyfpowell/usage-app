@@ -14,6 +14,7 @@ export interface UsageRecord {
   isInternal: boolean
   hasFeedback: boolean
   classification: string
+  classification2: string | null
   groupText: string | null
   ticketText: string | null
   jiraIssueKey: string | null
@@ -53,6 +54,7 @@ export interface RecordFilters {
   feedbackValue?: string
   classification?: string
   notClassification?: string
+  classification2?: string
   week?: string
   dateFrom?: string  // YYYY-MM-DD
   dateTo?: string    // YYYY-MM-DD (inclusive)
@@ -105,6 +107,7 @@ export function getRecords(filters: RecordFilters = {}) {
   if (filters.feedbackValue) params.set('feedbackValue', filters.feedbackValue)
   if (filters.classification) params.set('classification', filters.classification)
   if (filters.notClassification) params.set('notClassification', filters.notClassification)
+  if (filters.classification2) params.set('classification2', filters.classification2)
   if (filters.week) params.set('week', filters.week)
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters.dateTo) params.set('dateTo', filters.dateTo)
@@ -119,7 +122,7 @@ export function getNewFeedbackCount() {
 
 export function patchRecord(
   id: number,
-  data: Partial<Pick<UsageRecord, 'classification' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey' | 'customerResponse'>>
+  data: Partial<Pick<UsageRecord, 'classification' | 'classification2' | 'groupText' | 'ticketText' | 'epicKey' | 'linkedIssueKey' | 'customerResponse'>>
 ) {
   return apiFetch<UsageRecord>(`/records/${id}`, {
     method: 'PATCH',
